@@ -1,0 +1,17 @@
+*.iml
+.gradle
+/local.properties
+/.idea/
+.DS_Store
+/build
+*/build
+captures/
+.externalNativeBuild
+.cxx
+*.apk
+*.aab
+hs_err_pid*.log
+replay_pid*.log
+signing.properties
+*.keystore
+*.jks

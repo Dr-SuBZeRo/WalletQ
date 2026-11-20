@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- Privacy: Exclude database from automated cloud sync -->
+        <exclude domain="database" path="walletq.db" />
+        <exclude domain="database" path="walletq.db-shm" />
+        <exclude domain="database" path="walletq.db-wal" />
+    </cloud-backup>
+    <device-to-device-backup>
+        <!-- Allow manual device-to-device transfer under user direction -->
+        <include domain="database" path="walletq.db" />
+        <include domain="sharedpref" path="." />
+    </device-to-device-backup>
+</data-extraction-rules>

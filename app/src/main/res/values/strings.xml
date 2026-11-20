@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">WalletQ</string>
+    <string name="developer_name">SuBZeRo</string>
+    <string name="app_tagline">Personal &amp; Household Money Management</string>
+
+    <!-- Navigation Destinations -->
+    <string name="nav_home">Home</string>
+    <string name="nav_activity">Activity</string>
+    <string name="nav_accounts">Accounts</string>
+    <string name="nav_reports">Reports</string>
+    <string name="nav_more">More</string>
+
+    <!-- Placeholder screen titles -->
+    <string name="title_home">Dashboard</string>
+    <string name="title_activity">Financial Activity</string>
+    <string name="title_accounts">Accounts &amp; Wallets</string>
+    <string name="title_reports">Financial Reports</string>
+    <string name="title_more">Settings &amp; Preferences</string>
+</resources>
