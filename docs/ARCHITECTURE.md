@@ -4,7 +4,7 @@
 **Developer:** SuBZeRo  
 **Package:** `com.walletq`  
 **License:** Apache License 2.0  
-**Phase:** 1 — Project Initialization & Architecture Validation (Schema V2)  
+**Phase:** 2A — Financial Ledger Domain Engine  
 
 ---
 
@@ -12,15 +12,15 @@
 
 WalletQ is engineered as a privacy-first, offline-first personal and household financial management platform. 
 
-The software architecture is governed by four core tenets:
+The software architecture is governed by five core tenets:
 1. **Uncompromising Privacy:** Financial data is personal and sensitive. WalletQ requires zero accounts, zero phone numbers, and has zero analytics or tracking SDKs. It does not declare or use the `android.permission.INTERNET` permission.
 2. **Single Source of Truth (SSOT):** The local SQLite/Room database (`walletq.db`) is the sole authoritative state of truth on the device.
 3. **Clean Architecture & Unidirectional Data Flow (UDF):**
    - **Presentation Layer (Jetpack Compose):** Consumes immutable UI state streams and dispatches user intentions as events. Contains zero financial calculation or database access logic.
-   - **Domain Layer (Kotlin):** Pure business entities (`Money`, `Currency`, `OwnershipType`, `HouseholdRole`, `Household`, `HouseholdMember`, `Account`, `Profile`, `ExchangeRate`) completely isolated from Android SDK dependencies.
+   - **Domain Layer (Kotlin):** Pure business entities (`Transaction`, `LedgerEntry`, `Money`, `Currency`, `OwnershipType`, `HouseholdRole`, `Household`, `HouseholdMember`, `Account`, `Profile`, `ExchangeRate`, `LedgerEngine`) completely isolated from Android SDK dependencies.
    - **Data Layer (Room + DataStore):** Concrete implementations of persistence, schema definitions, indices, and preference management.
 4. **Deterministic Financial Math:** Monetary amounts are stored as exact 64-bit signed integers representing minor units, entirely avoiding binary floating-point round-off errors.
-5. **Zero Destructive Migrations:** Financial databases must never silently drop tables. Schema changes use explicit `Migration` pipelines (`MIGRATION_1_2`).
+5. **Immutable Event Ledger & Auditability:** Transactions generate immutable atomic ledger entries. Financial corrections use compensating reversals rather than destructive updates.
 
 ---
 
@@ -36,8 +36,9 @@ The software architecture is governed by four core tenets:
                                v
 +-------------------------------------------------------------+
 |                        Domain Layer                         |
-| Pure Kotlin Models (Money, Currency, Household, Member)     |
-|                Contracts & Business Rules                   |
+|     Financial Ledger Engine (LedgerEngine, Transaction,      |
+|    LedgerEntry, TransferDetails, Reversal/Replacement,      |
+|      Money, Currency, Household, HouseholdMember)           |
 +------------------------------+------------------------------+
                                ^
                                |
@@ -58,36 +59,16 @@ The software architecture is governed by four core tenets:
 
 ---
 
-## 3. Database Strategy & Integrity Model (Schema V2)
+## 3. Financial Ledger Domain Architecture (Phase 2A)
 
-The local SQLite database (`walletq.db`) is managed via AndroidX Room.
+The core domain layer encapsulates all double-entry and ledger logic in pure Kotlin:
 
-### Key Relational Safeguards:
-1. **Foreign Key Enforcement:** SQLite does not enable foreign key enforcement by default. WalletQ explicitly executes `PRAGMA foreign_keys = ON;` inside the `RoomDatabase.Callback.onOpen` hook.
-2. **Atomic Pre-Population:** System baseline currencies, the default personal profile, default household, and owner membership are inserted synchronously during `onCreate(db: SupportSQLiteDatabase)` within the open creation transaction, eliminating race conditions.
-3. **Foreign Key Integrity:**
-   - `accounts.profileId` references `profiles.id` (ON DELETE CASCADE)
-   - `accounts.householdId` references `households.id` (ON DELETE SET NULL)
-   - `accounts.currencyCode` references `currencies.code` (ON DELETE RESTRICT)
-   - `household_members.householdId` references `households.id` (ON DELETE CASCADE)
-   - `household_members.profileId` references `profiles.id` (ON DELETE CASCADE)
-   - `exchange_rates.baseCurrencyCode` references `currencies.code` (ON DELETE CASCADE)
-   - `exchange_rates.targetCurrencyCode` references `currencies.code` (ON DELETE CASCADE)
-4. **No Destructive Migration Fallback:** The application uses explicit `Migration(1, 2)` handling table creation, account migration, and indexing.
-
----
-
-## 4. Household Relational Architecture
-
-WalletQ distinguishes between individual profiles and collective household boundaries without conflating them:
-
-1. **`ProfileEntity`**: Represents an individual user persona on the device.
-2. **`HouseholdEntity`**: Represents an administrative financial unit (e.g. "Family Budget", "Flat 402").
-3. **`HouseholdMemberEntity`**: M:N junction table connecting profiles to households with granular roles:
-   - `HouseholdRole.OWNER`: Creator / primary manager.
-   - `HouseholdRole.ADMIN`: Can modify household accounts and budgets.
-   - `HouseholdRole.MEMBER`: Can record transactions.
-   - `HouseholdRole.VIEWER`: Read-only reporting access.
-4. **Account Ownership**:
-   - **Personal Account:** `ownershipType = PERSONAL`, `householdId = NULL`. Visible strictly to the owner profile.
-   - **Household Account:** `ownershipType = HOUSEHOLD`, `householdId = <household_id>`. Shared with members of that household.
+- **`Transaction`**: Immutable business event capturing income, expenses, or transfers with positive magnitude `amount: Money`, ownership scope, and lifecycle status (`POSTED`, `REVERSED`).
+- **`LedgerEntry`**: Atomic credit/debit record affecting a single account with signed minor units (`+` for CREDIT, `-` for DEBIT).
+- **`TransferDetails`**: Encapsulates destination account, destination amount, applied exchange rate, and rate reference for both same-currency and cross-currency transfers.
+- **`LedgerEngine`**: Pure domain service responsible for:
+  - Transaction semantic validation.
+  - Generating double-entry ledger entries.
+  - Deriving account balances with overflow prevention (`Math.addExact`).
+  - Generating transaction reversals and replacements while preserving audit trails.
+  - Enforcing personal vs. household boundary isolation.

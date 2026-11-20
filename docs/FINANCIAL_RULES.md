@@ -2,7 +2,7 @@
 
 **Application:** WalletQ  
 **Lead Architect:** SuBZeRo  
-**Standard:** Double-Entry Foundation, Minor Units, & Historical Exchange Rates  
+**Standard:** Double-Entry Foundation, Minor Units, Historical Exchange Rates, & Immutable Ledger  
 
 ---
 
@@ -28,34 +28,72 @@ Every monetary amount is stored as a 64-bit signed integer (`Long minorUnits`) r
 
 ---
 
-## 3. Currency Registry & Variable Precision
+## 3. Financial Ledger & Double-Entry Accounting Engine
 
-| Currency | Code | Decimals | Minor Unit Name | Major Amount | Stored `minorUnits` |
-|---|---|---|---|---|---|
-| Indian Rupee | `INR` | 2 | Paise | ₹ 250.75 | `25075L` |
-| US Dollar | `USD` | 2 | Cent | $ 19.99 | `1999L` |
-| Euro | `EUR` | 2 | Cent | € 100.00 | `10000L` |
-| British Pound | `GBP` | 2 | Penny | £ 45.50 | `4550L` |
-| UAE Dirham | `AED` | 2 | Fils | 50.25 AED | `5025L` |
-| Japanese Yen | `JPY` | 0 | Yen | ¥ 5,000 | `5000L` |
+WalletQ employs an immutable financial event ledger architecture (`LedgerEngine`):
 
-Default reporting currency is set to **INR (`₹`)**.
+### 3.1. Transaction Types & Ledger Mapping
+1. **`INCOME`**:
+   - Represents an external inflow into an account.
+   - Generates **1 `CREDIT`** ledger entry on the target account.
+   - Increases account balance: $\text{Balance}_{\text{new}} = \text{Balance}_{\text{old}} + \text{Amount}$.
+2. **`EXPENSE`**:
+   - Represents an outflow from an account.
+   - Generates **1 `DEBIT`** ledger entry on the source account.
+   - Decreases account balance: $\text{Balance}_{\text{new}} = \text{Balance}_{\text{old}} - \text{Amount}$.
+3. **`TRANSFER`**:
+   - Reallocates funds between two distinct accounts.
+   - **Never counts as income or expense.**
+   - Generates **2 paired ledger entries**:
+     - **`DEBIT`** on the Source Account ($- \text{Amount}$).
+     - **`CREDIT`** on the Destination Account ($+ \text{DestinationAmount}$).
+
+### 3.2. Transfer Value Conservation & Currency Rules
+- **Same-Currency Transfer:**
+  $$\Delta \text{Balance}_{\text{source}} + \Delta \text{Balance}_{\text{destination}} = 0$$
+  The total net worth of the user across both accounts remains strictly unchanged.
+- **Cross-Currency Transfer:**
+  - Stored with explicit `TransferDetails`: `sourceAmount`, `destinationAmount`, `appliedExchangeRate`, and optional `exchangeRateReferenceId`.
+  - Destination amount is deterministically derived:
+    $$\text{DestinationAmount} = \text{SourceAmount} \times \text{ExchangeRate}$$
+    rounded to the destination currency's decimal places via Banker's Rounding (`HALF_EVEN`).
+  - Source and destination amounts are never summed across differing currencies.
 
 ---
 
-## 4. Historical Exchange Rate Storage
+## 4. Account Balance Derivation & Running Balances
 
-WalletQ persists historical exchange rates in the local SQLite table `exchange_rates`:
-- `baseCurrencyCode`: Foreign key to `currencies(code)`
-- `targetCurrencyCode`: Foreign key to `currencies(code)`
-- `rate`: Exact `BigDecimal` string representation (e.g. `"83.50000000"`) avoiding floating-point precision loss
-- `timestampEpochMs`: Timestamp of the exchange rate quote
+Account balances are derived deterministically from the opening balance and the sum of ledger entries:
+$$\text{CurrentBalance} = \text{InitialBalance} + \sum_{i=1}^{n} \text{SignedMinorUnits}_i$$
+- Handled with checked operations (`Math.addExact`) to prevent silent integer wrap-around.
+- `calculateRunningBalances` yields the chronological sequence of account balances over time.
 
 ---
 
-## 5. Controlled Decimal Calculations & Banker's Rounding
+## 5. Financial Corrections & Audit Trail (Reversals & Replacements)
 
-When performing percentage division, ratio scaling, or currency conversion:
-- Calculations transition to `java.math.BigDecimal` using **Banker's Rounding** (`RoundingMode.HALF_EVEN`).
-- Equidistant `.5` fractions round to the nearest even integer, eliminating statistical bias in financial accumulations.
-- Results are immediately rescaled to the currency's integer minor units.
+In double-entry ledger bookkeeping, posted financial records are **never silently overwritten or deleted**.
+
+1. **Transaction Reversal:**
+   - The original transaction status transitions to `REVERSED` with a link to `reversalTransactionId`.
+   - A compensating transaction (`POSTED`, referencing `originalTransactionId`) is recorded with inverted ledger entries:
+     - Income reversal creates a `DEBIT` entry ($- \text{Amount}$).
+     - Expense reversal creates a `CREDIT` entry ($+ \text{Amount}$).
+     - Transfer reversal credits the source ($+ \text{Amount}$) and debits the destination ($- \text{DestinationAmount}$).
+   - The combined historical ledger entries naturally zero out the original transaction.
+2. **Replacement / Correction:**
+   - To correct an error (e.g. wrong amount, wrong category), the engine executes an atomic correction:
+     1. Reverses the original transaction with compensating entries.
+     2. Posts the replacement transaction with `originalTransactionId` pointing to the original transaction.
+   - Both the error and the correction remain permanently visible in the audit trail.
+
+---
+
+## 6. Ownership & Boundary Isolation Rules
+
+Every transaction and transfer is validated against strict ownership boundaries:
+1. **Personal Accounts:** Can only be modified by transactions owned by the same personal profile (`transaction.ownerProfileId == account.profileId`, `householdId == null`).
+2. **Household Accounts:** Can only be modified by transactions belonging to the same household (`transaction.householdId == account.householdId`).
+3. **Personal Transfers:** Direct transfers between two personal accounts are restricted to accounts belonging to the **same personal profile**.
+4. **Household Transfers:** Direct transfers between two household accounts are restricted to the **same household**.
+5. **Mixed Transfers (Personal $\leftrightarrow$ Household):** Permitted only when the personal account owner is an active member of the target household.
