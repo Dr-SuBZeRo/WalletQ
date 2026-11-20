@@ -27,6 +27,12 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE profileId = :profileId AND isArchived = 0 ORDER BY name ASC")
     fun getAccountsByProfileFlow(profileId: String): Flow<List<AccountEntity>>
 
+    @Query("SELECT * FROM accounts WHERE householdId = :householdId AND isArchived = 0 ORDER BY name ASC")
+    fun getAccountsByHouseholdFlow(householdId: String): Flow<List<AccountEntity>>
+
+    @Query("SELECT * FROM accounts WHERE profileId = :profileId AND ownershipType = 'PERSONAL' AND isArchived = 0 ORDER BY name ASC")
+    fun getPersonalAccountsByProfileFlow(profileId: String): Flow<List<AccountEntity>>
+
     @Query("SELECT * FROM accounts WHERE isArchived = 0 ORDER BY name ASC")
     fun getAllActiveAccountsFlow(): Flow<List<AccountEntity>>
 

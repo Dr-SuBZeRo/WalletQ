@@ -6,6 +6,7 @@
 - [x] Verify Android SDK platform: `android-36` and build tools `36.0.0` installed.
 - [x] Discover and configure Gradle 8.13 wrapper (`gradlew`, `gradlew.bat`).
 - [x] Initialize Git repository (`git init`) and create comprehensive `.gitignore`.
+- [x] Link and verify remote repository: `https://github.com/Dr-SuBZeRo/WalletQ.git`.
 
 ## 2. Project Configuration & Build System
 - [x] Establish Gradle Kotlin DSL project (`settings.gradle.kts`, `build.gradle.kts`, `app/build.gradle.kts`).
@@ -20,31 +21,41 @@
 - [x] Explicit handling of variable currency decimal places (JPY = 0, INR/USD/EUR/GBP/AED = 2).
 - [x] Implement `Money` value object backed by exact 64-bit integer `minorUnits: Long`.
 - [x] Forbid cross-currency arithmetic without explicit conversion via runtime assertions.
-- [x] Implement controlled `BigDecimal` scaling with Banker's rounding (`RoundingMode.HALF_EVEN`).
-- [x] Define `OwnershipType` (PERSONAL, HOUSEHOLD) for local dual ownership.
+- [x] Implement overflow-safe operations (`Math.addExact`, `Math.subtractExact`, `Math.negateExact`, `Math.multiplyExact`).
+- [x] Implement scalar integer division with Banker's rounding (`Money.div(Long)`).
+- [x] Implement precise ratio calculation (`Money.div(Money)`).
+- [x] Implement cross-currency conversion with Banker's rounding (`Money.convertTo`).
+- [x] Implement `ExchangeRate` domain model.
+
+## 4. Household Relational Architecture
+- [x] Define `Household` domain model.
+- [x] Define `HouseholdRole` enum (`OWNER`, `ADMIN`, `MEMBER`, `VIEWER`).
+- [x] Define `HouseholdMember` junction model supporting multi-household membership.
+- [x] Define `OwnershipType` (PERSONAL, HOUSEHOLD).
 - [x] Define `AccountType` (CASH, BANK, SAVINGS, CREDIT_CARD, INVESTMENT, OTHER).
-- [x] Implement `Profile` and `Account` domain entities.
+- [x] Support personal and household accounts via `householdId` and `ownershipType`.
 
-## 4. Room Database Foundation
-- [x] Configure `WalletQDatabase` (version 1, file `walletq.db`).
-- [x] Implement `Converters` for `OwnershipType` and `AccountType`.
-- [x] Define `CurrencyEntity`, `ProfileEntity`, and `AccountEntity`.
+## 5. Room Database Foundation (Schema V2)
+- [x] Configure `WalletQDatabase` (version 2, file `walletq.db`).
+- [x] Define `ProfileEntity`, `HouseholdEntity`, `HouseholdMemberEntity`, `AccountEntity`, `CurrencyEntity`, `ExchangeRateEntity`.
 - [x] Enforce SQLite Foreign Key constraints via `DatabaseCallback` (`PRAGMA foreign_keys = ON;`).
-- [x] Pre-populate default ISO currencies and default Personal profile on database creation.
-- [x] Implement reactive Room DAOs (`ProfileDao`, `AccountDao`, `CurrencyDao`).
+- [x] Synchronous atomic baseline pre-population within `onCreate` transaction.
+- [x] Implement deterministic `MIGRATION_1_2` without destructive fallback.
+- [x] Remove `.fallbackToDestructiveMigration()` from `DatabaseModule`.
+- [x] Implement reactive Room DAOs (`ProfileDao`, `HouseholdDao`, `AccountDao`, `CurrencyDao`, `ExchangeRateDao`).
 
-## 5. DataStore Preferences Foundation
+## 6. DataStore Preferences Foundation
 - [x] Define `PreferencesRepository` interface.
 - [x] Implement `PreferencesRepositoryImpl` utilizing AndroidX DataStore Preferences.
 - [x] Manage `ThemeMode` (SYSTEM, LIGHT, DARK), dynamic color toggle, default reporting currency, and active profile ID.
 
-## 6. Dependency Injection (Hilt)
-- [x] Implement `DatabaseModule` providing `WalletQDatabase` and DAOs.
+## 7. Dependency Injection (Hilt)
+- [x] Implement `DatabaseModule` providing `WalletQDatabase`, DAOs (Profile, Household, Account, Currency, ExchangeRate).
 - [x] Implement `DataStoreModule` binding `PreferencesRepository`.
 - [x] Implement `DispatchersModule` with `@IoDispatcher`, `@DefaultDispatcher`, and `@MainDispatcher`.
 - [x] Annotate `WalletQApplication` with `@HiltAndroidApp` and `MainActivity` with `@AndroidEntryPoint`.
 
-## 7. Material 3 Design System
+## 8. Material 3 Design System
 - [x] Implement fintech palette: Blue, Teal, and Neutral color tokens in `Color.kt`.
 - [x] Configure typography tokens in `Type.kt`.
 - [x] Configure shape tokens in `Shape.kt`.
@@ -52,29 +63,19 @@
 - [x] Implement `WalletQTheme` supporting Light mode, Dark mode, system default, and dynamic colors.
 - [x] Build reusable components: `WalletQTopBar`, `WalletQCard`, and `WalletQEmptyState`.
 
-## 8. Presentation & Navigation Shell
+## 9. Presentation & Navigation Shell
 - [x] Configure Navigation Compose with 5 top-level destinations: Home, Activity, Accounts, Reports, More.
 - [x] Build bottom `NavigationBar` with Material 3 icons and indicator highlighting.
 - [x] Implement `HomeScreen` with net worth summary card, architecture badges, and empty state.
 - [x] Implement clean placeholder screens: `ActivityScreen`, `AccountsScreen`, `ReportsScreen`.
 - [x] Implement interactive `MoreScreen` with live theme switching, dynamic color toggle, currency picker, and privacy audit.
 
-## 9. Security & Privacy Guarantees
+## 10. Security & Privacy Guarantees
 - [x] Verify zero `android.permission.INTERNET` in `AndroidManifest.xml`.
 - [x] Exclude database from automated cloud backups in `backup_rules.xml` and `data_extraction_rules.xml`.
 - [x] Zero third-party telemetry, tracking, or advertising SDKs.
 
-## 10. Assets & Documentation
-- [x] Generate density mipmap launcher icons (`ic_launcher.png`, `ic_launcher_round.png`) from high-res `icons/icon.png`.
-- [x] Create `README.md`.
-- [x] Create `LICENSE` (Apache License 2.0).
-- [x] Create `CONTRIBUTING.md`.
-- [x] Create `docs/ARCHITECTURE.md`.
-- [x] Create `docs/FINANCIAL_RULES.md`.
-- [x] Create `docs/PRIVACY.md`.
-- [x] Create `docs/ROADMAP.md`.
-- [x] Create `docs/IMPLEMENTATION_CHECKLIST.md`.
-
 ## 11. Testing & Verification
-- [x] Compile and build project with memory-safe JVM configuration.
-- [x] Run unit test suite (`MoneyTest`, `CurrencyTest`, `NavigationDestinationsTest`, `ThemeTest`, `OwnershipAndAccountTest`).
+- [x] Unit test suite covering money math, overflow safety, conversions, division, precision, household relations, and themes.
+- [x] Execute `testDebugUnitTest` — 100% passing.
+- [x] Execute `assembleDebug` — APK generated successfully.

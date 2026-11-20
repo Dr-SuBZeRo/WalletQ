@@ -4,7 +4,7 @@
 **Developer:** SuBZeRo  
 **Package:** `com.walletq`  
 **License:** Apache License 2.0  
-**Phase:** 1 — Project Initialization & Architecture Baseline  
+**Phase:** 1 — Project Initialization & Architecture Validation (Schema V2)  
 
 ---
 
@@ -17,9 +17,10 @@ The software architecture is governed by four core tenets:
 2. **Single Source of Truth (SSOT):** The local SQLite/Room database (`walletq.db`) is the sole authoritative state of truth on the device.
 3. **Clean Architecture & Unidirectional Data Flow (UDF):**
    - **Presentation Layer (Jetpack Compose):** Consumes immutable UI state streams and dispatches user intentions as events. Contains zero financial calculation or database access logic.
-   - **Domain Layer (Kotlin):** Pure business entities (`Money`, `Currency`, `OwnershipType`, `Account`, `Profile`) completely isolated from Android SDK dependencies.
+   - **Domain Layer (Kotlin):** Pure business entities (`Money`, `Currency`, `OwnershipType`, `HouseholdRole`, `Household`, `HouseholdMember`, `Account`, `Profile`, `ExchangeRate`) completely isolated from Android SDK dependencies.
    - **Data Layer (Room + DataStore):** Concrete implementations of persistence, schema definitions, indices, and preference management.
 4. **Deterministic Financial Math:** Monetary amounts are stored as exact 64-bit signed integers representing minor units, entirely avoiding binary floating-point round-off errors.
+5. **Zero Destructive Migrations:** Financial databases must never silently drop tables. Schema changes use explicit `Migration` pipelines (`MIGRATION_1_2`).
 
 ---
 
@@ -35,15 +36,15 @@ The software architecture is governed by four core tenets:
                                v
 +-------------------------------------------------------------+
 |                        Domain Layer                         |
-|      Pure Kotlin Models (Money, Currency, Ownership)        |
+| Pure Kotlin Models (Money, Currency, Household, Member)     |
 |                Contracts & Business Rules                   |
 +------------------------------+------------------------------+
                                ^
                                |
 +-------------------------------------------------------------+
 |                         Data Layer                          |
-|         Room DAOs & Entities (Profile, Account, Currency)   |
-|         DataStore Preferences (Theme, Default Currency)      |
+| Room DAOs & Entities (Profile, Household, Member, Account,  |
+| Currency, ExchangeRate) & DataStore Preferences             |
 +------------------------------+------------------------------+
                                |
                                v
@@ -57,42 +58,36 @@ The software architecture is governed by four core tenets:
 
 ---
 
-## 3. Module Responsibilities & Planned Incremental Modularization
-
-To ensure smooth compilation on resource-constrained development hardware (8 GB RAM), WalletQ initializes with a streamlined package architecture inside `:app` that maintains strict modular boundaries. 
-
-As features expand in subsequent phases, packages will be incrementally extracted into dedicated Gradle modules without refactoring core logic:
-
-| Target Module | Current Package | Responsibilities | Dependencies |
-|---|---|---|---|
-| `:core:model` | `com.walletq.core.model` | Pure Kotlin financial models (`Money`, `Currency`, `OwnershipType`), business rules. Zero Android dependencies. | Kotlinx Serialization |
-| `:core:database` | `com.walletq.core.database` | Room database schema, SQLite DAOs, type converters, integrity callbacks. | Room, Kotlinx Coroutines |
-| `:core:datastore` | `com.walletq.core.datastore` | Preferences DataStore repository for theme, dynamic colors, active profile. | DataStore Preferences |
-| `:core:designsystem` | `com.walletq.core.designsystem`| Material 3 design tokens, typography, shapes, colors, reusable UI widgets. | Jetpack Compose M3 |
-| `:core:navigation` | `com.walletq.core.navigation` | Navigation Compose definitions, top-level destination routes, bottom navigation. | Navigation Compose |
-| `:feature:home` | `com.walletq.feature.home` | Overview dashboard, net worth summary, recent activity feed. | Core modules |
-| `:feature:activity` | `com.walletq.feature.activity` | Transaction log, chronological list, transfer details. | Core modules |
-| `:feature:accounts` | `com.walletq.feature.accounts` | Multi-account management (Cash, Bank, Savings, Cards). | Core modules |
-| `:feature:reports` | `com.walletq.feature.reports` | Spending analytics, cash flow breakdown, budget charts. | Core modules |
-| `:feature:more` | `com.walletq.feature.more` | Settings, theme toggle, currency selection, privacy audit. | Core modules |
-
----
-
-## 4. Database Strategy & Foreign Key Integrity
+## 3. Database Strategy & Integrity Model (Schema V2)
 
 The local SQLite database (`walletq.db`) is managed via AndroidX Room.
 
-### Key Constraints:
+### Key Relational Safeguards:
 1. **Foreign Key Enforcement:** SQLite does not enable foreign key enforcement by default. WalletQ explicitly executes `PRAGMA foreign_keys = ON;` inside the `RoomDatabase.Callback.onOpen` hook.
-2. **Cascading Deletion:** If a parent profile is deleted, all associated accounts and financial records cascade delete to prevent orphaned data.
-3. **Indexing:** Every foreign key column (e.g. `AccountEntity.profileId`) is explicitly indexed in Room to ensure performant queries.
+2. **Atomic Pre-Population:** System baseline currencies, the default personal profile, default household, and owner membership are inserted synchronously during `onCreate(db: SupportSQLiteDatabase)` within the open creation transaction, eliminating race conditions.
+3. **Foreign Key Integrity:**
+   - `accounts.profileId` references `profiles.id` (ON DELETE CASCADE)
+   - `accounts.householdId` references `households.id` (ON DELETE SET NULL)
+   - `accounts.currencyCode` references `currencies.code` (ON DELETE RESTRICT)
+   - `household_members.householdId` references `households.id` (ON DELETE CASCADE)
+   - `household_members.profileId` references `profiles.id` (ON DELETE CASCADE)
+   - `exchange_rates.baseCurrencyCode` references `currencies.code` (ON DELETE CASCADE)
+   - `exchange_rates.targetCurrencyCode` references `currencies.code` (ON DELETE CASCADE)
+4. **No Destructive Migration Fallback:** The application uses explicit `Migration(1, 2)` handling table creation, account migration, and indexing.
 
 ---
 
-## 5. Dual Ownership Model: Personal vs. Household
+## 4. Household Relational Architecture
 
-WalletQ natively distinguishes between individual finances and collective household finances:
-- **`OwnershipType.PERSONAL`**: Belongs strictly to an individual profile.
-- **`OwnershipType.HOUSEHOLD`**: Shared across household members on the same device.
+WalletQ distinguishes between individual profiles and collective household boundaries without conflating them:
 
-All records retain foreign key association to their originating `ProfileEntity`. In Phase 1, profiles reside on the local device. No multi-device sync is assumed, keeping user data private and self-contained.
+1. **`ProfileEntity`**: Represents an individual user persona on the device.
+2. **`HouseholdEntity`**: Represents an administrative financial unit (e.g. "Family Budget", "Flat 402").
+3. **`HouseholdMemberEntity`**: M:N junction table connecting profiles to households with granular roles:
+   - `HouseholdRole.OWNER`: Creator / primary manager.
+   - `HouseholdRole.ADMIN`: Can modify household accounts and budgets.
+   - `HouseholdRole.MEMBER`: Can record transactions.
+   - `HouseholdRole.VIEWER`: Read-only reporting access.
+4. **Account Ownership**:
+   - **Personal Account:** `ownershipType = PERSONAL`, `householdId = NULL`. Visible strictly to the owner profile.
+   - **Household Account:** `ownershipType = HOUSEHOLD`, `householdId = <household_id>`. Shared with members of that household.

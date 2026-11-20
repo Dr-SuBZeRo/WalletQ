@@ -16,6 +16,7 @@ import java.util.Locale
  *    divisible unit of that currency (e.g., Paise for INR, Cents for USD, Yen for JPY).
  * 3. Cross-currency addition or subtraction without explicit conversion is strictly prohibited.
  * 4. Decimal calculations (e.g. conversions, percentages) use [BigDecimal] with [RoundingMode.HALF_EVEN] (Banker's rounding).
+ * 5. Arithmetic operations use strict overflow checks (Math.*Exact) to guarantee mathematical integrity.
  */
 @Serializable
 data class Money(
@@ -37,20 +38,56 @@ data class Money(
         return copy(minorUnits = Math.subtractExact(minorUnits, other.minorUnits))
     }
 
-    operator fun unaryMinus(): Money = copy(minorUnits = -minorUnits)
+    /**
+     * Unary negation with overflow protection against Long.MIN_VALUE.
+     */
+    operator fun unaryMinus(): Money = copy(minorUnits = Math.negateExact(minorUnits))
 
     operator fun times(multiplier: Long): Money {
         return copy(minorUnits = Math.multiplyExact(minorUnits, multiplier))
     }
 
     /**
-     * Controlled decimal multiplication for exchange rates, interest, or ratio calculations.
+     * Controlled decimal multiplication for tax, interest, or ratio calculations within the same currency.
      * Uses Banker's Rounding ([RoundingMode.HALF_EVEN]).
      */
     operator fun times(factor: BigDecimal): Money {
         val currentDecimal = toBigDecimal()
         val result = currentDecimal.multiply(factor).setScale(currency.decimalPlaces, RoundingMode.HALF_EVEN)
         return fromBigDecimal(result, currency)
+    }
+
+    /**
+     * Division by integer scalar (e.g. splitting an expense among N members).
+     * Uses Banker's Rounding ([RoundingMode.HALF_EVEN]) for the fractional minor unit remainder.
+     */
+    operator fun div(divisor: Long): Money {
+        require(divisor != 0L) { "Division by zero is not permitted in financial calculations." }
+        val decResult = toBigDecimal().divide(BigDecimal.valueOf(divisor), currency.decimalPlaces, RoundingMode.HALF_EVEN)
+        return fromBigDecimal(decResult, currency)
+    }
+
+    /**
+     * Ratio calculation between two monetary values of the same currency.
+     * Useful for budget percentage consumption calculations.
+     */
+    operator fun div(other: Money): BigDecimal {
+        require(currency.code == other.currency.code) {
+            "Cannot compute ratio of different currencies: '${currency.code}' and '${other.currency.code}'"
+        }
+        require(other.minorUnits != 0L) { "Division by zero money amount is not permitted." }
+        return toBigDecimal().divide(other.toBigDecimal(), 8, RoundingMode.HALF_EVEN)
+    }
+
+    /**
+     * Converts this monetary amount into a target currency using an explicit exchange rate.
+     * Uses Banker's Rounding ([RoundingMode.HALF_EVEN]) scaled to the target currency's precision.
+     */
+    fun convertTo(targetCurrency: Currency, exchangeRate: BigDecimal): Money {
+        require(exchangeRate > BigDecimal.ZERO) { "Exchange rate must be strictly positive." }
+        val sourceDecimal = toBigDecimal()
+        val targetDecimal = sourceDecimal.multiply(exchangeRate).setScale(targetCurrency.decimalPlaces, RoundingMode.HALF_EVEN)
+        return fromBigDecimal(targetDecimal, targetCurrency)
     }
 
     fun isZero(): Boolean = minorUnits == 0L

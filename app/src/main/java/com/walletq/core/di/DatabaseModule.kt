@@ -6,13 +6,14 @@ import com.walletq.core.database.DatabaseCallback
 import com.walletq.core.database.WalletQDatabase
 import com.walletq.core.database.dao.AccountDao
 import com.walletq.core.database.dao.CurrencyDao
+import com.walletq.core.database.dao.ExchangeRateDao
+import com.walletq.core.database.dao.HouseholdDao
 import com.walletq.core.database.dao.ProfileDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Provider
 import javax.inject.Singleton
 
 @Module
@@ -22,16 +23,15 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideWalletQDatabase(
-        @ApplicationContext context: Context,
-        databaseProvider: Provider<WalletQDatabase>
+        @ApplicationContext context: Context
     ): WalletQDatabase {
         return Room.databaseBuilder(
             context,
             WalletQDatabase::class.java,
             WalletQDatabase.DATABASE_NAME
         )
-            .addCallback(DatabaseCallback(databaseProvider))
-            .fallbackToDestructiveMigration()
+            .addCallback(DatabaseCallback())
+            .addMigrations(WalletQDatabase.MIGRATION_1_2)
             .build()
     }
 
@@ -43,4 +43,10 @@ object DatabaseModule {
 
     @Provides
     fun provideCurrencyDao(database: WalletQDatabase): CurrencyDao = database.currencyDao()
+
+    @Provides
+    fun provideHouseholdDao(database: WalletQDatabase): HouseholdDao = database.householdDao()
+
+    @Provides
+    fun provideExchangeRateDao(database: WalletQDatabase): ExchangeRateDao = database.exchangeRateDao()
 }
