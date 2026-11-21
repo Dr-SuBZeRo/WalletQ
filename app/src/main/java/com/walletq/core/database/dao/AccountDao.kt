@@ -38,4 +38,7 @@ interface AccountDao {
 
     @Query("SELECT COUNT(*) FROM accounts")
     suspend fun getCount(): Int
+
+    @Query("UPDATE accounts SET currentBalanceMinorUnits = :balance WHERE id = :id")
+    suspend fun updateCurrentBalance(id: String, balance: Long)
 }

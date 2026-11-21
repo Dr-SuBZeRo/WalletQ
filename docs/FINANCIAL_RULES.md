@@ -97,3 +97,18 @@ Every transaction and transfer is validated against strict ownership boundaries:
 3. **Personal Transfers:** Direct transfers between two personal accounts are restricted to accounts belonging to the **same personal profile**.
 4. **Household Transfers:** Direct transfers between two household accounts are restricted to the **same household**.
 5. **Mixed Transfers (Personal $\leftrightarrow$ Household):** Permitted only when the personal account owner is an active member of the target household.
+
+---
+
+## 7. Repository Transaction Boundaries & Persistence Rules (Phase 2B)
+
+1. **Atomic Database Writes:**
+   - Transaction insertion, ledger entry generation, and account balance updates are executed within a single SQLite transaction (`database.withTransaction`).
+   - If any step fails (validation error, constraint violation, overflow), the entire transaction rolls back.
+   - A transaction cannot exist without its required ledger entries.
+2. **Deletion Policies & Foreign Key Protections:**
+   - `accounts`: Foreign key deletion policy is `ON DELETE RESTRICT` on transactions and ledger entries. Accounts with transaction history cannot be deleted; they must be archived.
+   - `categories`: Foreign key deletion policy is `ON DELETE RESTRICT` on transactions. Categories referenced by transactions cannot be physically deleted; they must be archived.
+   - `currencies`: Foreign key deletion policy is `ON DELETE RESTRICT` on accounts, transactions, and ledger entries.
+3. **Idempotent Category Seeding:**
+   - Default system categories are seeded using `INSERT OR IGNORE` in both initial database creation and version 2-to-3 migration.

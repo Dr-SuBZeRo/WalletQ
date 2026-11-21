@@ -2,6 +2,7 @@ package com.walletq.core.database
 
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.walletq.core.model.Category
 import com.walletq.core.model.Currency
 import com.walletq.core.model.HouseholdRole
 import com.walletq.core.model.OwnershipType
@@ -47,5 +48,25 @@ class DatabaseCallback : RoomDatabase.Callback() {
             "INSERT OR IGNORE INTO household_members (householdId, profileId, role, joinedAtEpochMs) VALUES (?, ?, ?, ?)",
             arrayOf("default-household", "default-personal", HouseholdRole.OWNER.name, now)
         )
+
+        // Pre-populate default system categories idempotently
+        Category.DEFAULT_CATEGORIES.forEach { category ->
+            db.execSQL(
+                """
+                INSERT OR IGNORE INTO categories (
+                    id, name, transactionType, iconIdentifier, colorIdentifier,
+                    parentCategoryId, profileId, householdId, isSystemCategory, isArchived, createdAtEpochMs
+                ) VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, 1, 0, ?)
+                """.trimIndent(),
+                arrayOf(
+                    category.id,
+                    category.name,
+                    category.transactionType.name,
+                    category.iconIdentifier,
+                    category.colorIdentifier,
+                    now
+                )
+            )
+        }
     }
 }

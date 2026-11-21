@@ -4,7 +4,8 @@
 **Developer:** SuBZeRo  
 **Package:** `com.walletq`  
 **License:** Apache License 2.0  
-**Phase:** 2A — Financial Ledger Domain Engine  
+**Current Phase:** 2B — Room Database Integration & Repository Layer  
+**Database Schema Version:** 3  
 
 ---
 
@@ -17,10 +18,11 @@ The software architecture is governed by five core tenets:
 2. **Single Source of Truth (SSOT):** The local SQLite/Room database (`walletq.db`) is the sole authoritative state of truth on the device.
 3. **Clean Architecture & Unidirectional Data Flow (UDF):**
    - **Presentation Layer (Jetpack Compose):** Consumes immutable UI state streams and dispatches user intentions as events. Contains zero financial calculation or database access logic.
-   - **Domain Layer (Kotlin):** Pure business entities (`Transaction`, `LedgerEntry`, `Money`, `Currency`, `OwnershipType`, `HouseholdRole`, `Household`, `HouseholdMember`, `Account`, `Profile`, `ExchangeRate`, `LedgerEngine`) completely isolated from Android SDK dependencies.
-   - **Data Layer (Room + DataStore):** Concrete implementations of persistence, schema definitions, indices, and preference management.
+   - **Domain Layer (Kotlin):** Pure business entities (`Transaction`, `LedgerEntry`, `TransferDetails`, `Category`, `Money`, `Currency`, `OwnershipType`, `HouseholdRole`, `Household`, `HouseholdMember`, `Account`, `Profile`, `ExchangeRate`, `LedgerEngine`) completely isolated from Android SDK dependencies.
+   - **Data Layer (Room + DataStore):** Concrete implementations of persistence, schema definitions, DAOs, indices, atomic transaction runner, and preference management.
+   - **Repository Layer:** Mediates between Domain and Data layers, coordinating `LedgerEngine` domain validation, double-entry ledger persistence, balance projection, and atomic transaction boundaries.
 4. **Deterministic Financial Math:** Monetary amounts are stored as exact 64-bit signed integers representing minor units, entirely avoiding binary floating-point round-off errors.
-5. **Immutable Event Ledger & Auditability:** Transactions generate immutable atomic ledger entries. Financial corrections use compensating reversals rather than destructive updates.
+5. **Immutable Event Ledger & Auditability:** Transactions generate immutable atomic ledger entries. Financial corrections use compensating reversals rather than destructive updates. Financial records use `RESTRICT` foreign keys preventing accidental cascade deletion.
 
 ---
 
@@ -35,17 +37,26 @@ The software architecture is governed by five core tenets:
                                |
                                v
 +-------------------------------------------------------------+
+|                      Repository Layer                       |
+|   TransactionRepository (Atomic Writes, Balance Projection) |
+|   CategoryRepository (Ownership, Archival & Delete Guards)  |
++------------------------------+------------------------------+
+                               |
+                               v
++-------------------------------------------------------------+
 |                        Domain Layer                         |
 |     Financial Ledger Engine (LedgerEngine, Transaction,      |
 |    LedgerEntry, TransferDetails, Reversal/Replacement,      |
-|      Money, Currency, Household, HouseholdMember)           |
+|     Category, Money, Currency, Household, HouseholdMember)  |
 +------------------------------+------------------------------+
                                ^
                                |
 +-------------------------------------------------------------+
 |                         Data Layer                          |
-| Room DAOs & Entities (Profile, Household, Member, Account,  |
-| Currency, ExchangeRate) & DataStore Preferences             |
+| Room Database (Version 3), TransactionRunner, DAOs:         |
+| (TransactionDao, LedgerDao, CategoryDao, AccountDao,        |
+|  ProfileDao, HouseholdDao, CurrencyDao, ExchangeRateDao)    |
+| DataStore Preferences                                       |
 +------------------------------+------------------------------+
                                |
                                v
@@ -54,7 +65,7 @@ The software architecture is governed by five core tenets:
 |      Design System (M3 Tokens, Theme, Colors, Typography)   |
 |      Navigation (5 Top-Level Destinations, NavHost)         |
 |      Dependency Injection (Hilt Singleton Component)        |
-+-------------------------------------------------------------+
++------------------------------+------------------------------+
 ```
 
 ---
@@ -66,9 +77,34 @@ The core domain layer encapsulates all double-entry and ledger logic in pure Kot
 - **`Transaction`**: Immutable business event capturing income, expenses, or transfers with positive magnitude `amount: Money`, ownership scope, and lifecycle status (`POSTED`, `REVERSED`).
 - **`LedgerEntry`**: Atomic credit/debit record affecting a single account with signed minor units (`+` for CREDIT, `-` for DEBIT).
 - **`TransferDetails`**: Encapsulates destination account, destination amount, applied exchange rate, and rate reference for both same-currency and cross-currency transfers.
+- **`Category`**: Domain classification model for transactions, supporting predefined system categories as well as personal and household user-defined categories.
 - **`LedgerEngine`**: Pure domain service responsible for:
   - Transaction semantic validation.
   - Generating double-entry ledger entries.
   - Deriving account balances with overflow prevention (`Math.addExact`).
   - Generating transaction reversals and replacements while preserving audit trails.
   - Enforcing personal vs. household boundary isolation.
+
+---
+
+## 4. Room Database & Repository Architecture (Phase 2B)
+
+The persistence and repository layer connects the pure domain engine to Room:
+
+1. **Room Entities:**
+   - `TransactionEntity`: Maps `Transaction` domain model into `transactions` table with full transfer details, audit IDs, and strict foreign keys.
+   - `LedgerEntryEntity`: Maps `LedgerEntry` domain model into `ledger_entries` table with signed minor units and composite indices `(accountId, timestampEpochMs)`.
+   - `CategoryEntity`: Maps `Category` domain model into `categories` table with system category flags and hierarchical self-references.
+
+2. **Atomic Transaction Runner (`TransactionRunner`):**
+   - Coordinates multi-table atomic writes (`transactions`, `ledger_entries`, `accounts`) inside `database.withTransaction`.
+   - Guarantees that no transaction is ever persisted without its accompanying ledger entries.
+   - Guarantees immediate rollback on validation failure, constraint violation, or arithmetic overflow.
+
+3. **Repository Implementations:**
+   - `TransactionRepositoryImpl`: Validates business rules via `LedgerEngine`, persists transactions and ledger entries, updates account balances atomically, and handles reversals and replacements.
+   - `CategoryRepositoryImpl`: Validates category ownership boundaries (system vs personal vs household), handles archival, and prevents physical deletion of categories referenced by posted transactions.
+
+4. **Schema Migrations:**
+   - `MIGRATION_1_2`: Introduced `households`, `household_members`, `exchange_rates`, and reconstructed `accounts`.
+   - `MIGRATION_2_3`: Introduces `categories`, `transactions`, `ledger_entries`, creates indices, and pre-populates default system categories idempotently without altering existing financial data.

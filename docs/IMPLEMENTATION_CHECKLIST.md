@@ -28,3 +28,24 @@
 - [x] Implement ownership validation: Personal vs Household isolation, cross-household blocking, authorized member validation.
 - [x] Write comprehensive unit tests in `LedgerEngineTest.kt` (21 tests covering income, expense, transfers, overflow, reversals, replacements, edge cases for JPY & INR).
 - [x] Update documentation (`docs/FINANCIAL_RULES.md`, `docs/ARCHITECTURE.md`, `docs/IMPLEMENTATION_CHECKLIST.md`).
+
+## Phase 2B: Room Database Integration & Repository Layer
+- [x] Create `Category` domain model with system category defaults.
+- [x] Create `TransactionEntity` with minor units, transfer details, and audit fields.
+- [x] Create `LedgerEntryEntity` with signed minor units and composite indices.
+- [x] Create `CategoryEntity` with hierarchy and ownership references.
+- [x] Implement TypeConverters for `TransactionType`, `TransactionStatus`, `LedgerEntryType`, and `BigDecimal`.
+- [x] Implement `TransactionDao`, `LedgerDao`, and `CategoryDao`.
+- [x] Update `AccountDao` with `updateCurrentBalance` and `HouseholdDao` with synchronous `getMembersForHousehold`.
+- [x] Create bidirectional entity/domain mappers (`DatabaseMappers.kt`).
+- [x] Implement `MIGRATION_2_3` in `WalletQDatabase` with non-destructive preservation and idempotent category seeding.
+- [x] Export Room schema version 3 JSON (`app/schemas/com.walletq.core.database.WalletQDatabase/3.json`).
+- [x] Implement `TransactionRunner` and `RoomTransactionRunner` for atomic database transactions.
+- [x] Implement `TransactionRepository` and `TransactionRepositoryImpl` (validation via LedgerEngine, atomic writes, balance projections, reversals, replacements).
+- [x] Implement `CategoryRepository` and `CategoryRepositoryImpl` (ownership guards, archival, delete restrictions).
+- [x] Provide Hilt dependency injection bindings in `DatabaseModule` and `RepositoryModule`.
+- [x] Write schema migration unit tests in `MigrationTest.kt` (table creation, indices, preservation, default category seeding).
+- [x] Write repository unit tests in `TransactionRepositoryTest.kt` (income, expense, same-currency transfer, cross-currency transfer, reversal, replacement, rollback, ownership boundaries, historical balances).
+- [x] Write category repository unit tests in `CategoryRepositoryTest.kt` (ownership boundaries, archival, deletion guards).
+- [x] Comprehensive verification: `testDebugUnitTest`, `assembleDebug`, `lintDebug`.
+- [x] Update documentation (`docs/DATABASE_SCHEMA.md`, `docs/ARCHITECTURE.md`, `docs/FINANCIAL_RULES.md`, `docs/IMPLEMENTATION_CHECKLIST.md`).

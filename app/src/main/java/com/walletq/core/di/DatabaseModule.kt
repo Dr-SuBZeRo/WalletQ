@@ -5,10 +5,13 @@ import androidx.room.Room
 import com.walletq.core.database.DatabaseCallback
 import com.walletq.core.database.WalletQDatabase
 import com.walletq.core.database.dao.AccountDao
+import com.walletq.core.database.dao.CategoryDao
 import com.walletq.core.database.dao.CurrencyDao
 import com.walletq.core.database.dao.ExchangeRateDao
 import com.walletq.core.database.dao.HouseholdDao
+import com.walletq.core.database.dao.LedgerDao
 import com.walletq.core.database.dao.ProfileDao
+import com.walletq.core.database.dao.TransactionDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -31,7 +34,10 @@ object DatabaseModule {
             WalletQDatabase.DATABASE_NAME
         )
             .addCallback(DatabaseCallback())
-            .addMigrations(WalletQDatabase.MIGRATION_1_2)
+            .addMigrations(
+                WalletQDatabase.MIGRATION_1_2,
+                WalletQDatabase.MIGRATION_2_3
+            )
             .build()
     }
 
@@ -49,4 +55,18 @@ object DatabaseModule {
 
     @Provides
     fun provideExchangeRateDao(database: WalletQDatabase): ExchangeRateDao = database.exchangeRateDao()
+
+    @Provides
+    fun provideCategoryDao(database: WalletQDatabase): CategoryDao = database.categoryDao()
+
+    @Provides
+    fun provideTransactionDao(database: WalletQDatabase): TransactionDao = database.transactionDao()
+
+    @Provides
+    fun provideLedgerDao(database: WalletQDatabase): LedgerDao = database.ledgerDao()
+
+    @Provides
+    @Singleton
+    fun provideTransactionRunner(database: WalletQDatabase): com.walletq.core.database.TransactionRunner =
+        com.walletq.core.database.RoomTransactionRunner(database)
 }

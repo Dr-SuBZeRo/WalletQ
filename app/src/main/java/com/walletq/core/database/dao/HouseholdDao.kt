@@ -37,6 +37,9 @@ interface HouseholdDao {
     @Query("SELECT * FROM household_members WHERE householdId = :householdId ORDER BY joinedAtEpochMs ASC")
     fun getMembersForHouseholdFlow(householdId: String): Flow<List<HouseholdMemberEntity>>
 
+    @Query("SELECT * FROM household_members WHERE householdId = :householdId ORDER BY joinedAtEpochMs ASC")
+    suspend fun getMembersForHousehold(householdId: String): List<HouseholdMemberEntity>
+
     @Query("""
         SELECT h.* FROM households h
         INNER JOIN household_members hm ON h.id = hm.householdId
