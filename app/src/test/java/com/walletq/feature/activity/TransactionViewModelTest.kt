@@ -481,9 +481,12 @@ class TransactionViewModelTest {
         assertEquals(listOf("t1"), viewModel.uiState.value.transactions.map { it.id })
         viewModel.clearFilters()
 
-        // Date filter (TODAY excludes tenDaysAgo)
+        // Date filter (TODAY excludes tenDaysAgo and future-dated transactions)
+        val twoDaysFuture = now + (2L * 24 * 60 * 60 * 1000)
+        val tFuture = t1.copy(id = "t3", transactionDateEpochMs = twoDaysFuture, description = "Future Tx")
+        txRepo.transactionsFlow.value = listOf(t1, t2, tFuture)
+
         viewModel.onDateRangeFilterChanged(DateRangeFilter.TODAY)
         assertEquals(listOf("t1"), viewModel.uiState.value.transactions.map { it.id })
-
     }
 }

@@ -39,25 +39,21 @@ class TransactionRepositoryImpl @Inject constructor(
             val accountsMap = mutableMapOf(sourceAccount.id to sourceAccount)
 
             // 2. Fetch and validate destination account for transfers
+            var destAccount: com.walletq.core.model.Account? = null
             if (transaction.transferDetails != null) {
                 val destEntity = accountDao.getById(transaction.transferDetails.destinationAccountId)
                     ?: throw IllegalArgumentException("Destination account '${transaction.transferDetails.destinationAccountId}' does not exist.")
-                val destAccount = destEntity.toDomain()
+                destAccount = destEntity.toDomain()
                 accountsMap[destAccount.id] = destAccount
             }
 
-            // 3. Validate category if referenced
-            if (transaction.categoryId != null) {
-                val category = categoryDao.getById(transaction.categoryId)
-                    ?: throw IllegalArgumentException("Category '${transaction.categoryId}' does not exist.")
-                require(!category.isArchived) {
-                    "Cannot record transaction with archived category '${category.name}'."
-                }
-            }
+            // 3. Validate category existence, archival status, type, and ownership
+            validateCategoryForTransaction(transaction, sourceAccount)
 
-            // 4. Fetch household members for ownership validation if applicable
-            val householdMembers = if (transaction.householdId != null) {
-                householdDao.getMembersForHousehold(transaction.householdId).map { it.toDomain() }
+            // 4. Fetch household members for ownership validation (covers household & mixed transfers)
+            val targetHouseholdId = transaction.householdId ?: sourceAccount.householdId ?: destAccount?.householdId
+            val householdMembers = if (targetHouseholdId != null) {
+                householdDao.getMembersForHousehold(targetHouseholdId).map { it.toDomain() }
             } else null
 
             // 5. Pure Kotlin LedgerEngine validation
@@ -160,21 +156,19 @@ class TransactionRepositoryImpl @Inject constructor(
             val sourceAccount = sourceEntity.toDomain()
             val accountsMap = mutableMapOf(sourceAccount.id to sourceAccount)
 
+            var destAccount: com.walletq.core.model.Account? = null
             if (replacement.transferDetails != null) {
                 val destEntity = accountDao.getById(replacement.transferDetails.destinationAccountId)
                     ?: throw IllegalArgumentException("Replacement destination account '${replacement.transferDetails.destinationAccountId}' does not exist.")
-                val destAccount = destEntity.toDomain()
+                destAccount = destEntity.toDomain()
                 accountsMap[destAccount.id] = destAccount
             }
 
-            if (replacement.categoryId != null) {
-                val category = categoryDao.getById(replacement.categoryId)
-                    ?: throw IllegalArgumentException("Replacement category '${replacement.categoryId}' does not exist.")
-                require(!category.isArchived) { "Cannot replace with archived category '${category.name}'." }
-            }
+            validateCategoryForTransaction(replacement, sourceAccount)
 
-            val householdMembers = if (replacement.householdId != null) {
-                householdDao.getMembersForHousehold(replacement.householdId).map { it.toDomain() }
+            val targetHouseholdId = replacement.householdId ?: sourceAccount.householdId ?: destAccount?.householdId
+            val householdMembers = if (targetHouseholdId != null) {
+                householdDao.getMembersForHousehold(targetHouseholdId).map { it.toDomain() }
             } else null
 
             // Validate replacement
@@ -285,5 +279,42 @@ class TransactionRepositoryImpl @Inject constructor(
             ?: throw IllegalArgumentException("Account '$accountId' does not exist.")
         val delta = ledgerDao.calculateBalanceDeltaAtTimestamp(accountId, timestampEpochMs)
         return Math.addExact(account.initialBalanceMinorUnits, delta)
+    }
+
+    private suspend fun validateCategoryForTransaction(
+        transaction: Transaction,
+        sourceAccount: com.walletq.core.model.Account
+    ) {
+        val categoryId = transaction.categoryId
+        if (transaction.type == TransactionType.TRANSFER) {
+            require(categoryId == null) {
+                "Transfer transactions must not reference a category."
+            }
+            return
+        }
+        if (categoryId == null) return
+
+        val category = categoryDao.getById(categoryId)
+            ?: throw IllegalArgumentException("Category '$categoryId' does not exist.")
+        require(!category.isArchived) {
+            "Cannot record transaction with archived category '${category.name}'."
+        }
+        require(category.transactionType == transaction.type) {
+            "Category '${category.name}' (${category.transactionType}) does not match transaction type (${transaction.type})."
+        }
+        if (!category.isSystemCategory) {
+            when (sourceAccount.ownershipType) {
+                com.walletq.core.model.OwnershipType.PERSONAL -> require(
+                    category.profileId == sourceAccount.profileId && category.householdId == null
+                ) {
+                    "Personal category '${category.name}' does not belong to account profile '${sourceAccount.profileId}'."
+                }
+                com.walletq.core.model.OwnershipType.HOUSEHOLD -> require(
+                    category.householdId != null && category.householdId == sourceAccount.householdId
+                ) {
+                    "Household category '${category.name}' does not belong to household '${sourceAccount.householdId}'."
+                }
+            }
+        }
     }
 }

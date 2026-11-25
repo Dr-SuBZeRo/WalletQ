@@ -657,4 +657,96 @@ class TransactionRepositoryTest {
         // At t=2500 -> 100000 + 10000 + 20000 = 130000
         assertEquals(130000L, repository.calculateBalanceAtTimestamp("acc-personal-cash", 2500L))
     }
+
+    @Test
+    fun mixedTransfer_unauthorizedProfileToHousehold_isRejected() = runTest {
+        accountDao.insert(
+            AccountEntity(
+                id = "acc-other-person",
+                profileId = "profile-2", // NOT a member of hh-1
+                householdId = null,
+                ownershipType = OwnershipType.PERSONAL,
+                name = "Other Person Wallet",
+                type = AccountType.CASH,
+                currencyCode = "INR",
+                initialBalanceMinorUnits = 100000L,
+                currentBalanceMinorUnits = 100000L,
+                isArchived = false,
+                createdAtEpochMs = 1700000000000L
+            )
+        )
+
+        val unauthorizedMixedTransfer = Transaction(
+            id = "tx-unauth-mixed",
+            type = TransactionType.TRANSFER,
+            amount = Money(10000L, Currency.INR),
+            accountId = "acc-other-person",
+            transactionDateEpochMs = 1700000090000L,
+            description = "Unauthorized transfer into household",
+            ownershipType = OwnershipType.PERSONAL,
+            ownerProfileId = "profile-2",
+            householdId = null,
+            transferDetails = TransferDetails(
+                destinationAccountId = "acc-hh-joint",
+                destinationAmount = Money(10000L, Currency.INR),
+                appliedExchangeRate = BigDecimal.ONE
+            ),
+            createdAtEpochMs = 1700000090000L,
+            updatedAtEpochMs = 1700000090000L
+        )
+
+        val result = repository.recordTransaction(unauthorizedMixedTransfer)
+        assertTrue(result.isFailure)
+        assertEquals(100000L, repository.calculateAccountBalance("acc-other-person"))
+        assertEquals(2000000L, repository.calculateAccountBalance("acc-hh-joint"))
+    }
+
+    @Test
+    fun recordTransaction_categoryTypeAndOwnershipMismatch_isRejected() = runTest {
+        // Expense category on INCOME transaction
+        val wrongTypeTx = Transaction(
+            id = "tx-wrong-cat-type",
+            type = TransactionType.INCOME,
+            amount = Money(10000L, Currency.INR),
+            accountId = "acc-personal-cash",
+            categoryId = "cat-food", // EXPENSE category
+            transactionDateEpochMs = 1700000095000L,
+            description = "Invalid category type",
+            ownershipType = OwnershipType.PERSONAL,
+            ownerProfileId = "profile-1",
+            createdAtEpochMs = 1700000095000L,
+            updatedAtEpochMs = 1700000095000L
+        )
+        assertTrue(repository.recordTransaction(wrongTypeTx).isFailure)
+
+        // Personal category owned by profile-2 on profile-1's transaction
+        categoryDao.insert(
+            CategoryEntity(
+                id = "cat-profile-2",
+                name = "Profile 2 Private",
+                transactionType = TransactionType.EXPENSE,
+                iconIdentifier = "spa",
+                colorIdentifier = "#009688",
+                profileId = "profile-2",
+                householdId = null,
+                isSystemCategory = false,
+                isArchived = false,
+                createdAtEpochMs = 1700000000000L
+            )
+        )
+        val crossProfileCatTx = Transaction(
+            id = "tx-wrong-cat-owner",
+            type = TransactionType.EXPENSE,
+            amount = Money(10000L, Currency.INR),
+            accountId = "acc-personal-cash", // profile-1
+            categoryId = "cat-profile-2",
+            transactionDateEpochMs = 1700000096000L,
+            description = "Cross-profile category",
+            ownershipType = OwnershipType.PERSONAL,
+            ownerProfileId = "profile-1",
+            createdAtEpochMs = 1700000096000L,
+            updatedAtEpochMs = 1700000096000L
+        )
+        assertTrue(repository.recordTransaction(crossProfileCatTx).isFailure)
+    }
 }

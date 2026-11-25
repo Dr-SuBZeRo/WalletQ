@@ -696,8 +696,10 @@ class TransactionViewModel @Inject constructor(
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
         val startOfTodayMs = today.atStartOfDay(zone).toInstant().toEpochMilli()
+        val startOfTomorrowMs = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
         val startOf7DaysMs = today.minusDays(6).atStartOfDay(zone).toInstant().toEpochMilli()
         val startOfMonthMs = today.withDayOfMonth(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val startOfNextMonthMs = today.withDayOfMonth(1).plusMonths(1).atStartOfDay(zone).toInstant().toEpochMilli()
 
         val query = filter.searchQuery.trim()
 
@@ -722,9 +724,9 @@ class TransactionViewModel @Inject constructor(
 
             val matchesDate = when (filter.dateRangeFilter) {
                 DateRangeFilter.ALL -> true
-                DateRangeFilter.TODAY -> tx.transactionDateEpochMs >= startOfTodayMs
-                DateRangeFilter.LAST_7_DAYS -> tx.transactionDateEpochMs >= startOf7DaysMs
-                DateRangeFilter.THIS_MONTH -> tx.transactionDateEpochMs >= startOfMonthMs
+                DateRangeFilter.TODAY -> tx.transactionDateEpochMs in startOfTodayMs until startOfTomorrowMs
+                DateRangeFilter.LAST_7_DAYS -> tx.transactionDateEpochMs in startOf7DaysMs until startOfTomorrowMs
+                DateRangeFilter.THIS_MONTH -> tx.transactionDateEpochMs in startOfMonthMs until startOfNextMonthMs
             }
             if (!matchesDate) return@filter false
 
