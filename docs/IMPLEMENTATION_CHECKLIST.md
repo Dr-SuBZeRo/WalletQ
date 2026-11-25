@@ -49,3 +49,13 @@
 - [x] Write category repository unit tests in `CategoryRepositoryTest.kt` (ownership boundaries, archival, deletion guards).
 - [x] Comprehensive verification: `testDebugUnitTest`, `assembleDebug`, `lintDebug`.
 - [x] Update documentation (`docs/DATABASE_SCHEMA.md`, `docs/ARCHITECTURE.md`, `docs/FINANCIAL_RULES.md`, `docs/IMPLEMENTATION_CHECKLIST.md`).
+
+## Phase 2C: Transaction Management UI
+- [x] Implement `MoneyInputParser` (`BigDecimal` currency precision validation, zero Float/Double).
+- [x] Implement `TransactionViewModel` with `StateFlow<ActivityUiState>`, form states, filters, and duplicate submission prevention.
+- [x] Implement `ActivityScreen` & `ActivityScreenContent` with chronological date grouping, search, and filters.
+- [x] Implement `AddTransactionSheet` for Income and Expense entry with ownership and category validation.
+- [x] Implement `TransferSheet` for same-currency and cross-currency transfers with conversion preview.
+- [x] Implement `TransactionDetailsSheet` with double-entry ledger display and reversal confirmation dialog.
+- [x] Add unit tests (`MoneyInputParserTest`, `TransactionViewModelTest`) and Compose UI tests (`ActivityScreenTest`).
+- [x] Verify `testDebugUnitTest`, `assembleDebug`, `lintDebug` and update documentation.

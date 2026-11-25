@@ -4,7 +4,7 @@
 **Developer:** SuBZeRo  
 **Package:** `com.walletq`  
 **License:** Apache License 2.0  
-**Current Phase:** 2B — Room Database Integration & Repository Layer  
+**Current Phase:** 2C — Transaction Management UI  
 **Database Schema Version:** 3  
 
 ---
@@ -108,3 +108,21 @@ The persistence and repository layer connects the pure domain engine to Room:
 4. **Schema Migrations:**
    - `MIGRATION_1_2`: Introduced `households`, `household_members`, `exchange_rates`, and reconstructed `accounts`.
    - `MIGRATION_2_3`: Introduces `categories`, `transactions`, `ledger_entries`, creates indices, and pre-populates default system categories idempotently without altering existing financial data.
+
+---
+
+## 5. Transaction Management Presentation Layer (Phase 2C)
+
+The presentation layer connects `TransactionRepository`, `CategoryRepository`, and Room DAOs to Material 3 Jetpack Compose interfaces:
+
+1. **`TransactionViewModel` (`@HiltViewModel`):**
+   - Combines reactive `Flow` streams from `TransactionRepository`, `CategoryRepository`, `AccountDao`, `ProfileDao`, and `HouseholdDao` into an immutable `StateFlow<ActivityUiState>`.
+   - Manages `TransactionFormState` (Income/Expense) and `TransferFormState` (Same-Currency and Cross-Currency).
+   - Uses `MoneyInputParser` (`BigDecimal`) to validate currency-specific decimal precision without `Float` or `Double`.
+   - Enforces duplicate submission prevention (`isSubmitting`) and coordinates reversals via `TransactionRepository.reverseTransaction`.
+
+2. **UI Screens & Sheets (`com.walletq.feature.activity`):**
+   - `ActivityScreen` & `ActivityScreenContent`: Chronological date-grouped transaction list with search, ownership, type, account, and date-range filters, plus Loading, Empty, and Error states.
+   - `AddTransactionSheet`: Income/Expense entry sheet with ownership context switching, account currency display, category picker, and Material 3 date picker.
+   - `TransferSheet`: Dedicated transfer interface with same-account prevention, prefilled/manual exchange rate support, and live Banker-rounded conversion preview.
+   - `TransactionDetailsSheet`: Full audit view showing transfer metadata, original/reversal references, double-entry ledger entries, and explicit reversal confirmation dialog.
