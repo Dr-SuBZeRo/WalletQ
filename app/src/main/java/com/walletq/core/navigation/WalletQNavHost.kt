@@ -9,9 +9,12 @@ import com.walletq.core.model.ThemeMode
 import com.walletq.core.model.UserPreferences
 import com.walletq.feature.accounts.AccountsScreen
 import com.walletq.feature.activity.ActivityScreen
+import com.walletq.feature.budgets.BudgetsScreen
 import com.walletq.feature.home.HomeScreen
 import com.walletq.feature.more.MoreScreen
 import com.walletq.feature.reports.ReportsScreen
+
+private const val ROUTE_BUDGETS = "budgets"
 
 @Composable
 fun WalletQNavHost(
@@ -44,8 +47,12 @@ fun WalletQNavHost(
                 userPreferences = userPreferences,
                 onThemeModeChanged = onThemeModeChanged,
                 onDynamicColorChanged = onDynamicColorChanged,
-                onDefaultCurrencyChanged = onDefaultCurrencyChanged
+                onDefaultCurrencyChanged = onDefaultCurrencyChanged,
+                onNavigateToBudgets = { navController.navigate(ROUTE_BUDGETS) }
             )
+        }
+        composable(ROUTE_BUDGETS) {
+            BudgetsScreen(onBackClick = { navController.popBackStack() })
         }
     }
 }

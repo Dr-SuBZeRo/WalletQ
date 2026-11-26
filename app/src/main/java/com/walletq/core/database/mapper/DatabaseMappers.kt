@@ -1,12 +1,17 @@
 package com.walletq.core.database.mapper
 
+import com.walletq.core.database.dao.BudgetWithAllocations
 import com.walletq.core.database.entity.AccountEntity
+import com.walletq.core.database.entity.BudgetCategoryAllocationEntity
+import com.walletq.core.database.entity.BudgetEntity
 import com.walletq.core.database.entity.CategoryEntity
 import com.walletq.core.database.entity.HouseholdEntity
 import com.walletq.core.database.entity.HouseholdMemberEntity
 import com.walletq.core.database.entity.LedgerEntryEntity
 import com.walletq.core.database.entity.TransactionEntity
 import com.walletq.core.model.Account
+import com.walletq.core.model.Budget
+import com.walletq.core.model.BudgetCategoryAllocation
 import com.walletq.core.model.Category
 import com.walletq.core.model.Currency
 import com.walletq.core.model.Household
@@ -176,4 +181,51 @@ fun LedgerEntry.toEntity(): LedgerEntryEntity = LedgerEntryEntity(
     currencyCode = currency.code,
     entryType = entryType,
     timestampEpochMs = timestampEpochMs
+)
+
+fun BudgetCategoryAllocationEntity.toDomain(): BudgetCategoryAllocation = BudgetCategoryAllocation(
+    id = id,
+    budgetId = budgetId,
+    categoryId = categoryId,
+    allocatedAmountMinorUnits = allocatedAmountMinorUnits
+)
+
+fun BudgetCategoryAllocation.toEntity(): BudgetCategoryAllocationEntity = BudgetCategoryAllocationEntity(
+    id = id,
+    budgetId = budgetId,
+    categoryId = categoryId,
+    allocatedAmountMinorUnits = allocatedAmountMinorUnits
+)
+
+fun BudgetWithAllocations.toDomain(): Budget = Budget(
+    id = budget.id,
+    name = budget.name,
+    period = budget.period,
+    startDateEpochMs = budget.startDateEpochMs,
+    endDateEpochMs = budget.endDateEpochMs,
+    currency = Currency.findByCode(budget.currencyCode),
+    allocatedAmountMinorUnits = budget.allocatedAmountMinorUnits,
+    ownershipType = budget.ownershipType,
+    profileId = budget.profileId,
+    householdId = budget.householdId,
+    isArchived = budget.isArchived,
+    createdAtEpochMs = budget.createdAtEpochMs,
+    updatedAtEpochMs = budget.updatedAtEpochMs,
+    categoryAllocations = allocations.map { it.toDomain() }
+)
+
+fun Budget.toEntity(): BudgetEntity = BudgetEntity(
+    id = id,
+    name = name,
+    period = period,
+    startDateEpochMs = startDateEpochMs,
+    endDateEpochMs = endDateEpochMs,
+    currencyCode = currency.code,
+    allocatedAmountMinorUnits = allocatedAmountMinorUnits,
+    ownershipType = ownershipType,
+    profileId = profileId,
+    householdId = householdId,
+    isArchived = isArchived,
+    createdAtEpochMs = createdAtEpochMs,
+    updatedAtEpochMs = updatedAtEpochMs
 )

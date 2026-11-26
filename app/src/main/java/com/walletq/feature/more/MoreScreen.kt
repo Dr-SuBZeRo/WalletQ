@@ -18,7 +18,9 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Paid
+import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -44,6 +46,7 @@ fun MoreScreen(
     onThemeModeChanged: (ThemeMode) -> Unit,
     onDynamicColorChanged: (Boolean) -> Unit,
     onDefaultCurrencyChanged: (String) -> Unit,
+    onNavigateToBudgets: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -84,6 +87,40 @@ fun MoreScreen(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+
+            // Monthly Budgets (Secondary Destination)
+            WalletQCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Dimensions.spaceSmall)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Savings,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Column {
+                            Text(
+                                text = "Monthly Budgets",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Text(
+                                text = "Manage personal and household spending limits",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Button(onClick = onNavigateToBudgets) {
+                        Text("Open")
+                    }
+                }
             }
 
             // Appearance Preferences

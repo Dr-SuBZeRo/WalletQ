@@ -4,8 +4,8 @@
 **Developer:** SuBZeRo  
 **Package:** `com.walletq`  
 **License:** Apache License 2.0  
-**Current Phase:** 3B — Account Integrity & Reconciliation  
-**Database Schema Version:** 4  
+**Current Phase:** 4A — Budget Management Foundation  
+**Database Schema Version:** 5  
 
 ---
 
@@ -151,3 +151,14 @@ The presentation layer connects `TransactionRepository`, `CategoryRepository`, a
 
 - **`AccountReconciliationEngine` (`com.walletq.core.model`):** Pure Kotlin read-only auditor that compares `InitialBalance + LedgerDelta` against stored `currentBalanceMinorUnits` and detects missing/duplicate ledger entries, currency mismatches, inconsistent counts, and incomplete reversals without silently mutating data.
 - **`AccountDetailsSheet` Reconciliation Card:** Displays Expected Balance, Stored Balance, Difference, Reconciliation Status (`Balanced` / `Discrepancy Found`), and discrepancy explanations, plus Credit Card Outstanding Liability clarity.
+
+---
+
+## 8. Budget Management Foundation (Phase 4A)
+
+1. **Schema & Domain (`MIGRATION_4_5`, Version 5):**
+   - `BudgetEntity` (`budgets`) and `BudgetCategoryAllocationEntity` (`budget_category_allocations`) with unique composite index `(budgetId, categoryId)`.
+   - `BudgetCalculationEngine`: Pure Kotlin spending engine computing allocated, actual spending, remaining, percentage consumed, and over-budget amounts across exact monthly boundaries.
+2. **Repository & Presentation (`com.walletq.feature.budgets`):**
+   - `BudgetRepository` / `BudgetRepositoryImpl`: Validates currency, positive minor-unit limits, expense-only non-duplicate categories, and personal/household authorization.
+   - `BudgetViewModel` & `BudgetsScreen` (accessible as a secondary destination from `MoreScreen`, preserving the 5 primary navigation tabs).

@@ -74,3 +74,11 @@
 - [x] Integrate `reconcileAccount` and `observeAccountReconciliation` into `AccountRepository`, `AccountViewModel`, and `AccountDetailsSheet`.
 - [x] Add `AccountReconciliationEngineTest` and `CreditCardAccountingTest`.
 - [x] Verify `testDebugUnitTest`, `assembleDebug`, `lintDebug` and update documentation.
+
+## Phase 4A: Budget Management Foundation
+- [x] Create `Budget`, `BudgetPeriod`, `BudgetCategoryAllocation`, `BudgetSpendingSummary`, and `BudgetCalculationEngine`.
+- [x] Add `BudgetEntity`, `BudgetCategoryAllocationEntity`, `BudgetDao`, `MIGRATION_4_5` (Room DB v5), and `5.json` schema export.
+- [x] Implement `BudgetRepository` & `BudgetRepositoryImpl` with expense-only category validation, duplicate prevention, and household membership authorization.
+- [x] Implement `BudgetViewModel`, `BudgetsUiState`, `BudgetsScreen`, and `AddEditBudgetSheet` (secondary route from `MoreScreen`).
+- [x] Add `BudgetCalculationEngineTest`, `BudgetRepositoryTest`, `BudgetViewModelTest`, and `MIGRATION_4_5` test in `MigrationTest`.
+- [x] Verify `testDebugUnitTest`, `assembleDebug`, `lintDebug` and update documentation.

@@ -2,6 +2,7 @@ package com.walletq.core.database
 
 import androidx.room.TypeConverter
 import com.walletq.core.model.AccountType
+import com.walletq.core.model.BudgetPeriod
 import com.walletq.core.model.HouseholdRole
 import com.walletq.core.model.LedgerEntryType
 import com.walletq.core.model.OwnershipType
@@ -76,4 +77,14 @@ class Converters {
 
     @TypeConverter
     fun toBigDecimal(value: String?): BigDecimal? = value?.let { BigDecimal(it) }
+
+    @TypeConverter
+    fun fromBudgetPeriod(period: BudgetPeriod): String = period.name
+
+    @TypeConverter
+    fun toBudgetPeriod(value: String): BudgetPeriod = try {
+        BudgetPeriod.valueOf(value)
+    } catch (e: Exception) {
+        BudgetPeriod.MONTHLY
+    }
 }

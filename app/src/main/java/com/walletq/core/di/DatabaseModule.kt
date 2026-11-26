@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.walletq.core.database.DatabaseCallback
 import com.walletq.core.database.WalletQDatabase
 import com.walletq.core.database.dao.AccountDao
+import com.walletq.core.database.dao.BudgetDao
 import com.walletq.core.database.dao.CategoryDao
 import com.walletq.core.database.dao.CurrencyDao
 import com.walletq.core.database.dao.ExchangeRateDao
@@ -37,7 +38,8 @@ object DatabaseModule {
             .addMigrations(
                 WalletQDatabase.MIGRATION_1_2,
                 WalletQDatabase.MIGRATION_2_3,
-                WalletQDatabase.MIGRATION_3_4
+                WalletQDatabase.MIGRATION_3_4,
+                WalletQDatabase.MIGRATION_4_5
             )
             .build()
     }
@@ -65,6 +67,9 @@ object DatabaseModule {
 
     @Provides
     fun provideLedgerDao(database: WalletQDatabase): LedgerDao = database.ledgerDao()
+
+    @Provides
+    fun provideBudgetDao(database: WalletQDatabase): BudgetDao = database.budgetDao()
 
     @Provides
     @Singleton

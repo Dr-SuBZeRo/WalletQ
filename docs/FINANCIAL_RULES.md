@@ -129,3 +129,17 @@ Every transaction and transfer is validated against strict ownership boundaries:
    - Computes $\text{ExpectedBalance} = \text{InitialBalance} + \sum \text{LedgerDelta}$ and compares it against the stored `currentBalanceMinorUnits`.
    - Detects projection mismatches, missing ledger entries, duplicate ledger entries, currency mismatches, inconsistent transaction-to-ledger counts, and incomplete reversals.
    - Never silently mutates or overwrites balances; corrections must use the auditable `adjustBalance` transaction workflow.
+
+---
+
+## 9. Budget & Spending Calculation Rules (Phase 4A)
+
+1. **Eligible Spending Transactions:**
+   - Only `TransactionStatus.POSTED` transactions of `TransactionType.EXPENSE` count toward budget spending.
+   - `INCOME`, `TRANSFER`, `REVERSED` transactions, and compensating reversal entries are strictly excluded.
+2. **Currency & Ownership Isolation:**
+   - Every budget has a single currency (`currencyCode`); spending is summed only from matching-currency transactions without automatic conversion.
+   - Personal budgets count only transactions belonging to that profile; Household budgets count only transactions belonging to that household, and access is restricted to verified household members.
+3. **Category Allocation & Arithmetic:**
+   - Only `EXPENSE` categories may be allocated; duplicate category allocations within the same budget are prohibited at both repository and database (`UNIQUE` index) levels.
+   - All spending sums, remaining amounts, and over-budget amounts use checked integer minor-unit arithmetic (`Math.addExact`, `Math.subtractExact`); percentages use `BigDecimal` (`RoundingMode.HALF_EVEN`), never `Float` or `Double`.

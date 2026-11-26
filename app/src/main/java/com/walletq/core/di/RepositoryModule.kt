@@ -2,6 +2,8 @@ package com.walletq.core.di
 
 import com.walletq.core.database.repository.AccountRepository
 import com.walletq.core.database.repository.AccountRepositoryImpl
+import com.walletq.core.database.repository.BudgetRepository
+import com.walletq.core.database.repository.BudgetRepositoryImpl
 import com.walletq.core.database.repository.CategoryRepository
 import com.walletq.core.database.repository.CategoryRepositoryImpl
 import com.walletq.core.database.repository.TransactionRepository
@@ -33,4 +35,10 @@ abstract class RepositoryModule {
     abstract fun bindCategoryRepository(
         impl: CategoryRepositoryImpl
     ): CategoryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBudgetRepository(
+        impl: BudgetRepositoryImpl
+    ): BudgetRepository
 }

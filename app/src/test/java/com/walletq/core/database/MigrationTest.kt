@@ -216,4 +216,32 @@ class MigrationTest {
         assertTrue(fullSql.contains("ALTER TABLE `accounts` ADD COLUMN `colorIdentifier` TEXT"))
         assertFalse(fullSql.uppercase(Locale.ROOT).contains("DROP TABLE"))
     }
+
+    @Test
+    fun migration_4_to_5_createsBudgetTablesAndUniqueIndicesWithoutAlteringExistingTables() {
+        val executedSqlList = mutableListOf<String>()
+
+        val db = Proxy.newProxyInstance(
+            SupportSQLiteDatabase::class.java.classLoader,
+            arrayOf(SupportSQLiteDatabase::class.java)
+        ) { _, method, args ->
+            when (method.name) {
+                "execSQL" -> {
+                    if (args != null && args.isNotEmpty() && args[0] is String) {
+                        executedSqlList.add(args[0] as String)
+                    }
+                    null
+                }
+                else -> null
+            }
+        } as SupportSQLiteDatabase
+
+        WalletQDatabase.MIGRATION_4_5.migrate(db)
+
+        val fullSql = executedSqlList.joinToString("\n")
+        assertTrue(fullSql.contains("CREATE TABLE IF NOT EXISTS `budgets`"))
+        assertTrue(fullSql.contains("CREATE TABLE IF NOT EXISTS `budget_category_allocations`"))
+        assertTrue(fullSql.contains("CREATE UNIQUE INDEX IF NOT EXISTS `index_budget_category_allocations_budgetId_categoryId`"))
+        assertFalse(fullSql.uppercase(Locale.ROOT).contains("DROP TABLE"))
+    }
 }

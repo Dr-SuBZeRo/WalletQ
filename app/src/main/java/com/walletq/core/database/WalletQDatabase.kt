@@ -6,6 +6,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.walletq.core.database.dao.AccountDao
+import com.walletq.core.database.dao.BudgetDao
 import com.walletq.core.database.dao.CategoryDao
 import com.walletq.core.database.dao.CurrencyDao
 import com.walletq.core.database.dao.ExchangeRateDao
@@ -14,6 +15,8 @@ import com.walletq.core.database.dao.LedgerDao
 import com.walletq.core.database.dao.ProfileDao
 import com.walletq.core.database.dao.TransactionDao
 import com.walletq.core.database.entity.AccountEntity
+import com.walletq.core.database.entity.BudgetCategoryAllocationEntity
+import com.walletq.core.database.entity.BudgetEntity
 import com.walletq.core.database.entity.CategoryEntity
 import com.walletq.core.database.entity.CurrencyEntity
 import com.walletq.core.database.entity.ExchangeRateEntity
@@ -34,9 +37,11 @@ import com.walletq.core.model.Category
         ExchangeRateEntity::class,
         CategoryEntity::class,
         TransactionEntity::class,
-        LedgerEntryEntity::class
+        LedgerEntryEntity::class,
+        BudgetEntity::class,
+        BudgetCategoryAllocationEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -50,6 +55,7 @@ abstract class WalletQDatabase : RoomDatabase() {
     abstract fun categoryDao(): CategoryDao
     abstract fun transactionDao(): TransactionDao
     abstract fun ledgerDao(): LedgerDao
+    abstract fun budgetDao(): BudgetDao
 
     companion object {
         const val DATABASE_NAME = "walletq.db"
@@ -264,6 +270,53 @@ abstract class WalletQDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE `accounts` ADD COLUMN `description` TEXT")
                 db.execSQL("ALTER TABLE `accounts` ADD COLUMN `iconIdentifier` TEXT")
                 db.execSQL("ALTER TABLE `accounts` ADD COLUMN `colorIdentifier` TEXT")
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `budgets` (
+                        `id` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `period` TEXT NOT NULL,
+                        `startDateEpochMs` INTEGER NOT NULL,
+                        `endDateEpochMs` INTEGER NOT NULL,
+                        `currencyCode` TEXT NOT NULL,
+                        `allocatedAmountMinorUnits` INTEGER NOT NULL,
+                        `ownershipType` TEXT NOT NULL,
+                        `profileId` TEXT,
+                        `householdId` TEXT,
+                        `isArchived` INTEGER NOT NULL,
+                        `createdAtEpochMs` INTEGER NOT NULL,
+                        `updatedAtEpochMs` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`currencyCode`) REFERENCES `currencies`(`code`) ON UPDATE NO ACTION ON DELETE RESTRICT,
+                        FOREIGN KEY(`profileId`) REFERENCES `profiles`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(`householdId`) REFERENCES `households`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_budgets_currencyCode` ON `budgets` (`currencyCode`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_budgets_profileId` ON `budgets` (`profileId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_budgets_householdId` ON `budgets` (`householdId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_budgets_startDateEpochMs` ON `budgets` (`startDateEpochMs`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_budgets_endDateEpochMs` ON `budgets` (`endDateEpochMs`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_budgets_isArchived` ON `budgets` (`isArchived`)")
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `budget_category_allocations` (
+                        `id` TEXT NOT NULL,
+                        `budgetId` TEXT NOT NULL,
+                        `categoryId` TEXT NOT NULL,
+                        `allocatedAmountMinorUnits` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`budgetId`) REFERENCES `budgets`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_budget_category_allocations_budgetId` ON `budget_category_allocations` (`budgetId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_budget_category_allocations_categoryId` ON `budget_category_allocations` (`categoryId`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_budget_category_allocations_budgetId_categoryId` ON `budget_category_allocations` (`budgetId`, `categoryId`)")
             }
         }
     }
