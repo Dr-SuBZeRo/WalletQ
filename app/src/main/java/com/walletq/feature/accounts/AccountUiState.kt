@@ -1,6 +1,7 @@
 package com.walletq.feature.accounts
 
 import com.walletq.core.model.Account
+import com.walletq.core.model.AccountReconciliationReport
 import com.walletq.core.model.AccountType
 import com.walletq.core.model.Currency
 import com.walletq.core.model.Household
@@ -75,6 +76,7 @@ data class AccountsUiState(
     val selectedAccountTransactions: List<Transaction> = emptyList(),
     val selectedAccountLedgerEntries: List<LedgerEntry> = emptyList(),
     val selectedAccountLedgerBalanceMinorUnits: Long? = null,
+    val selectedAccountReconciliation: AccountReconciliationReport? = null,
     val activeSheet: ActiveAccountSheet = ActiveAccountSheet.NONE,
     val snackbarMessage: String? = null
 )

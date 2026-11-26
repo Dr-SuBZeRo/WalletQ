@@ -10,6 +10,8 @@ import com.walletq.core.database.dao.TransactionDao
 import com.walletq.core.database.mapper.toDomain
 import com.walletq.core.database.mapper.toEntity
 import com.walletq.core.model.Account
+import com.walletq.core.model.AccountReconciliationEngine
+import com.walletq.core.model.AccountReconciliationReport
 import com.walletq.core.model.AccountType
 import com.walletq.core.model.LedgerEngine
 import com.walletq.core.model.Money
@@ -18,6 +20,8 @@ import com.walletq.core.model.Transaction
 import com.walletq.core.model.TransactionStatus
 import com.walletq.core.model.TransactionType
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.UUID
 import javax.inject.Inject
@@ -263,5 +267,32 @@ class AccountRepositoryImpl @Inject constructor(
             ?: throw IllegalArgumentException("Account '$accountId' does not exist.")
         val delta = ledgerDao.calculateAccountBalanceDelta(accountId)
         return Math.addExact(account.initialBalanceMinorUnits, delta)
+    }
+
+    override suspend fun reconcileAccount(accountId: String): Result<AccountReconciliationReport> = runCatching {
+        val account = accountDao.getById(accountId)?.toDomain()
+            ?: throw IllegalArgumentException("Account '$accountId' does not exist.")
+        val transactions = transactionDao.observeByAccount(accountId).first().map { it.toDomain() }
+        val entries = ledgerDao.getEntriesForAccount(accountId).map { it.toDomain() }
+        AccountReconciliationEngine.reconcile(
+            account = account,
+            transactionsForAccount = transactions,
+            ledgerEntriesForAccount = entries
+        )
+    }
+
+    override fun observeAccountReconciliation(accountId: String): Flow<AccountReconciliationReport?> {
+        return combine(
+            accountDao.observeAccountByIdFlow(accountId),
+            transactionDao.observeByAccount(accountId),
+            ledgerDao.observeAccountLedger(accountId)
+        ) { accountEntity, txEntities, ledgerEntities ->
+            val account = accountEntity?.toDomain() ?: return@combine null
+            AccountReconciliationEngine.reconcile(
+                account = account,
+                transactionsForAccount = txEntities.map { it.toDomain() },
+                ledgerEntriesForAccount = ledgerEntities.map { it.toDomain() }
+            )
+        }
     }
 }

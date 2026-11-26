@@ -4,7 +4,7 @@
 **Developer:** SuBZeRo  
 **Package:** `com.walletq`  
 **License:** Apache License 2.0  
-**Current Phase:** 3A — Account Management Foundation  
+**Current Phase:** 3B — Account Integrity & Reconciliation  
 **Database Schema Version:** 4  
 
 ---
@@ -144,3 +144,10 @@ The presentation layer connects `TransactionRepository`, `CategoryRepository`, a
 3. **Presentation Layer (`com.walletq.feature.accounts`):**
    - `AccountViewModel` & `AccountsUiState`: Groups active balances strictly by currency (never summing unlike currencies), supports search, ownership, type, and archived filters.
    - `AccountsScreen`, `AddEditAccountSheet`, `AccountDetailsSheet`, `AdjustBalanceSheet`: Material 3 account management experience with account-specific transaction history and archive confirmation.
+
+---
+
+## 7. Account Integrity & Reconciliation (Phase 3B)
+
+- **`AccountReconciliationEngine` (`com.walletq.core.model`):** Pure Kotlin read-only auditor that compares `InitialBalance + LedgerDelta` against stored `currentBalanceMinorUnits` and detects missing/duplicate ledger entries, currency mismatches, inconsistent counts, and incomplete reversals without silently mutating data.
+- **`AccountDetailsSheet` Reconciliation Card:** Displays Expected Balance, Stored Balance, Difference, Reconciliation Status (`Balanced` / `Discrepancy Found`), and discrepancy explanations, plus Credit Card Outstanding Liability clarity.

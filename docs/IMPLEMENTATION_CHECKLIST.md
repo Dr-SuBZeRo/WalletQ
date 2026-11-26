@@ -67,3 +67,10 @@
 - [x] Implement `AccountViewModel`, `AccountsUiState`, `AccountsScreen`, `AddEditAccountSheet`, `AccountDetailsSheet`, and `AdjustBalanceSheet`.
 - [x] Add `AccountRepositoryTest`, `AccountViewModelTest`, `MIGRATION_3_4` tests, and archived-account regression tests in `TransactionRepositoryTest` and `TransactionViewModelTest`.
 - [x] Verify `testDebugUnitTest`, `assembleDebug`, `lintDebug` and update documentation.
+
+## Phase 3B: Account Integrity & Reconciliation
+- [x] Audit Credit Card signed-balance accounting (purchases, payments, refunds, liability, transfers, reversals) and document model & limitations in `docs/FINANCIAL_RULES.md`.
+- [x] Implement read-only `AccountReconciliationEngine` and `AccountReconciliationReport` detecting projection mismatches, missing/duplicate entries, currency mismatches, count inconsistencies, and incomplete reversals.
+- [x] Integrate `reconcileAccount` and `observeAccountReconciliation` into `AccountRepository`, `AccountViewModel`, and `AccountDetailsSheet`.
+- [x] Add `AccountReconciliationEngineTest` and `CreditCardAccountingTest`.
+- [x] Verify `testDebugUnitTest`, `assembleDebug`, `lintDebug` and update documentation.

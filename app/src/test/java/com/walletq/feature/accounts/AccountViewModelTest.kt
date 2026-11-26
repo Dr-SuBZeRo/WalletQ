@@ -9,6 +9,8 @@ import com.walletq.core.database.repository.AccountRepository
 import com.walletq.core.database.repository.TransactionRepository
 import com.walletq.core.datastore.PreferencesRepository
 import com.walletq.core.model.Account
+import com.walletq.core.model.AccountReconciliationEngine
+import com.walletq.core.model.AccountReconciliationReport
 import com.walletq.core.model.AccountType
 import com.walletq.core.model.Currency
 import com.walletq.core.model.LedgerEntry
@@ -114,6 +116,19 @@ class AccountViewModelTest {
 
         override suspend fun calculateLedgerBalance(accountId: String): Long =
             getAccountById(accountId)?.currentBalanceMinorUnits ?: 0L
+
+        override suspend fun reconcileAccount(accountId: String): Result<AccountReconciliationReport> {
+            val acc = getAccountById(accountId)
+                ?: return Result.failure(IllegalArgumentException("Not found"))
+            return Result.success(AccountReconciliationEngine.reconcile(acc, emptyList(), emptyList()))
+        }
+
+        override fun observeAccountReconciliation(accountId: String): Flow<AccountReconciliationReport?> =
+            accountsFlow.map { list ->
+                list.find { it.id == accountId }?.let {
+                    AccountReconciliationEngine.reconcile(it, emptyList(), emptyList())
+                }
+            }
     }
 
     private class FakeTransactionRepository : TransactionRepository {

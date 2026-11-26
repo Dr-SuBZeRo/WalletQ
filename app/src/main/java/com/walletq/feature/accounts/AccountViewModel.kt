@@ -9,6 +9,7 @@ import com.walletq.core.database.repository.AccountRepository
 import com.walletq.core.database.repository.TransactionRepository
 import com.walletq.core.datastore.PreferencesRepository
 import com.walletq.core.model.Account
+import com.walletq.core.model.AccountReconciliationEngine
 import com.walletq.core.model.AccountType
 import com.walletq.core.model.Currency
 import com.walletq.core.model.Household
@@ -151,9 +152,14 @@ class AccountViewModel @Inject constructor(
         val selectedAccount = meta.selectedAccountId?.let { id ->
             data.allAccounts.find { it.id == id }
         }
-        val ledgerDerivedBalance = selectedAccount?.let { account ->
-            LedgerEngine.calculateAccountBalance(account, meta.selectedLedgerEntries).minorUnits
+        val reconciliationReport = selectedAccount?.let { account ->
+            AccountReconciliationEngine.reconcile(
+                account = account,
+                transactionsForAccount = meta.selectedTransactions,
+                ledgerEntriesForAccount = meta.selectedLedgerEntries
+            )
         }
+        val ledgerDerivedBalance = reconciliationReport?.expectedBalanceMinorUnits
 
         AccountsUiState(
             isLoading = false,
@@ -172,6 +178,7 @@ class AccountViewModel @Inject constructor(
             selectedAccountTransactions = meta.selectedTransactions,
             selectedAccountLedgerEntries = meta.selectedLedgerEntries,
             selectedAccountLedgerBalanceMinorUnits = ledgerDerivedBalance,
+            selectedAccountReconciliation = reconciliationReport,
             activeSheet = meta.activeSheet,
             snackbarMessage = meta.snackbarMessage
         )

@@ -373,6 +373,7 @@ fun AccountsScreenContent(
                     account = selected,
                     household = selected.householdId?.let { uiState.householdsById[it] },
                     ledgerDerivedBalanceMinorUnits = uiState.selectedAccountLedgerBalanceMinorUnits,
+                    reconciliationReport = uiState.selectedAccountReconciliation,
                     transactions = uiState.selectedAccountTransactions,
                     onEditClick = { onEditAccountClick(selected) },
                     onAdjustBalanceClick = { onAdjustBalanceClick(selected) },

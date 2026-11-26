@@ -47,9 +47,12 @@ import com.walletq.core.designsystem.ExpenseRed
 import com.walletq.core.designsystem.IncomeGreen
 import com.walletq.core.designsystem.component.WalletQCard
 import com.walletq.core.model.Account
+import com.walletq.core.model.AccountReconciliationReport
+import com.walletq.core.model.AccountType
 import com.walletq.core.model.Household
 import com.walletq.core.model.Money
 import com.walletq.core.model.OwnershipType
+import com.walletq.core.model.ReconciliationStatus
 import com.walletq.core.model.Transaction
 import com.walletq.core.model.TransactionStatus
 import com.walletq.core.model.TransactionType
@@ -60,6 +63,7 @@ fun AccountDetailsSheet(
     account: Account,
     household: Household?,
     ledgerDerivedBalanceMinorUnits: Long?,
+    reconciliationReport: AccountReconciliationReport?,
     transactions: List<Transaction>,
     onEditClick: () -> Unit,
     onAdjustBalanceClick: () -> Unit,
@@ -154,6 +158,22 @@ fun AccountDetailsSheet(
                     fontWeight = FontWeight.Bold,
                     color = if (currentMoney.isNegative()) ExpenseRed else MaterialTheme.colorScheme.onSurface
                 )
+                if (account.type == AccountType.CREDIT_CARD) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    val liabilityText = when {
+                        currentMoney.isNegative() ->
+                            "Outstanding Liability: ${(-currentMoney).format()}"
+                        currentMoney.isPositive() ->
+                            "Credit Surplus: ${currentMoney.format()}"
+                        else -> "Outstanding Liability: ${Money.zero(account.currency).format()}"
+                    }
+                    Text(
+                        text = liabilityText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (currentMoney.isNegative()) ExpenseRed else IncomeGreen,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
                 Spacer(modifier = Modifier.height(Dimensions.spaceSmall))
                 HorizontalDivider()
                 Spacer(modifier = Modifier.height(Dimensions.spaceSmall))
@@ -193,6 +213,10 @@ fun AccountDetailsSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+
+            if (reconciliationReport != null) {
+                AccountReconciliationCard(report = reconciliationReport)
             }
 
             // Actions
@@ -375,6 +399,105 @@ private fun AccountTransactionRow(
                 color = amountColor,
                 textDecoration = if (isReversed) TextDecoration.LineThrough else TextDecoration.None
             )
+        }
+    }
+}
+
+@Composable
+private fun AccountReconciliationCard(report: AccountReconciliationReport) {
+    val isBalanced = report.status == ReconciliationStatus.BALANCED
+    val expectedMoney = Money(report.expectedBalanceMinorUnits, report.currency)
+    val storedMoney = Money(report.storedBalanceMinorUnits, report.currency)
+    val diffMoney = Money(report.differenceMinorUnits, report.currency)
+
+    WalletQCard {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Ledger Reconciliation",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "${report.accountName} • ${report.currency.code}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Surface(
+                color = if (isBalanced) IncomeGreen.copy(alpha = 0.15f) else ExpenseRed.copy(alpha = 0.15f),
+                shape = MaterialTheme.shapes.small
+            ) {
+                Text(
+                    text = if (isBalanced) "Balanced" else "Discrepancy Found",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isBalanced) IncomeGreen else ExpenseRed,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(Dimensions.spaceSmall))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(Dimensions.spaceSmall))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    text = "Expected Balance",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = expectedMoney.format(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Stored Balance",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = storedMoney.format(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "Difference",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = diffMoney.format(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (report.differenceMinorUnits == 0L) IncomeGreen else ExpenseRed
+                )
+            }
+        }
+
+        if (report.discrepancies.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(Dimensions.spaceSmall))
+            report.discrepancies.forEach { discrepancy ->
+                Text(
+                    text = "• ${discrepancy.message}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ExpenseRed
+                )
+            }
         }
     }
 }

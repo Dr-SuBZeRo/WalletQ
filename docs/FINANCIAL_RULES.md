@@ -112,3 +112,20 @@ Every transaction and transfer is validated against strict ownership boundaries:
    - `currencies`: Foreign key deletion policy is `ON DELETE RESTRICT` on accounts, transactions, and ledger entries.
 3. **Idempotent Category Seeding:**
    - Default system categories are seeded using `INSERT OR IGNORE` in both initial database creation and version 2-to-3 migration.
+
+---
+
+## 8. Credit Card Accounting & Account Reconciliation (Phase 3B)
+
+1. **Credit Card Signed-Balance Model:**
+   - WalletQ uses a unified signed net-worth balance convention across all accounts:
+     - **Purchases (`EXPENSE`):** Generate a `DEBIT` ($-\text{Amount}$), moving a credit card balance negative (increasing outstanding liability).
+     - **Payments (`TRANSFER` from Bank/Cash to Credit Card):** Generate a `DEBIT` on the bank account and a `CREDIT` ($+\text{Amount}$) on the credit card, reducing outstanding liability without double-counting expenses.
+     - **Refunds (`INCOME` or `REVERSAL`):** Generate a `CREDIT` ($+\text{Amount}$), reducing outstanding liability (or creating a positive credit surplus if over-refunded).
+     - **Outstanding Liability:** $\max(0, -\text{CurrentBalance})$.
+   - **Documented Limitations:** Statements/billing cycles, APR, and credit limits are not yet stored on `AccountEntity`; standalone `INCOME` refunds count as inflows on the card unless recorded via `reverseTransaction`.
+
+2. **Read-Only Balance Reconciliation (`AccountReconciliationEngine`):**
+   - Computes $\text{ExpectedBalance} = \text{InitialBalance} + \sum \text{LedgerDelta}$ and compares it against the stored `currentBalanceMinorUnits`.
+   - Detects projection mismatches, missing ledger entries, duplicate ledger entries, currency mismatches, inconsistent transaction-to-ledger counts, and incomplete reversals.
+   - Never silently mutates or overwrites balances; corrections must use the auditable `adjustBalance` transaction workflow.

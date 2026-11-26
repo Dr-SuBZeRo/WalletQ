@@ -1,6 +1,7 @@
 package com.walletq.core.database.repository
 
 import com.walletq.core.model.Account
+import com.walletq.core.model.AccountReconciliationReport
 import com.walletq.core.model.AccountType
 import kotlinx.coroutines.flow.Flow
 
@@ -31,4 +32,6 @@ interface AccountRepository {
     suspend fun unarchiveAccount(accountId: String): Result<Unit>
     suspend fun deleteAccount(accountId: String): Result<Unit>
     suspend fun calculateLedgerBalance(accountId: String): Long
+    suspend fun reconcileAccount(accountId: String): Result<AccountReconciliationReport>
+    fun observeAccountReconciliation(accountId: String): Flow<AccountReconciliationReport?>
 }
