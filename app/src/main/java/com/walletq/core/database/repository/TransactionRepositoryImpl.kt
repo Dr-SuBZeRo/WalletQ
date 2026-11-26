@@ -36,6 +36,9 @@ class TransactionRepositoryImpl @Inject constructor(
             val sourceEntity = accountDao.getById(transaction.accountId)
                 ?: throw IllegalArgumentException("Source account '${transaction.accountId}' does not exist.")
             val sourceAccount = sourceEntity.toDomain()
+            require(!sourceAccount.isArchived) {
+                "Cannot record a transaction on archived account '${sourceAccount.name}'."
+            }
             val accountsMap = mutableMapOf(sourceAccount.id to sourceAccount)
 
             // 2. Fetch and validate destination account for transfers
@@ -44,6 +47,9 @@ class TransactionRepositoryImpl @Inject constructor(
                 val destEntity = accountDao.getById(transaction.transferDetails.destinationAccountId)
                     ?: throw IllegalArgumentException("Destination account '${transaction.transferDetails.destinationAccountId}' does not exist.")
                 destAccount = destEntity.toDomain()
+                require(!destAccount.isArchived) {
+                    "Cannot transfer to archived account '${destAccount.name}'."
+                }
                 accountsMap[destAccount.id] = destAccount
             }
 
@@ -154,6 +160,9 @@ class TransactionRepositoryImpl @Inject constructor(
             val sourceEntity = accountDao.getById(replacement.accountId)
                 ?: throw IllegalArgumentException("Replacement source account '${replacement.accountId}' does not exist.")
             val sourceAccount = sourceEntity.toDomain()
+            require(!sourceAccount.isArchived) {
+                "Cannot record a replacement transaction on archived account '${sourceAccount.name}'."
+            }
             val accountsMap = mutableMapOf(sourceAccount.id to sourceAccount)
 
             var destAccount: com.walletq.core.model.Account? = null
@@ -161,6 +170,9 @@ class TransactionRepositoryImpl @Inject constructor(
                 val destEntity = accountDao.getById(replacement.transferDetails.destinationAccountId)
                     ?: throw IllegalArgumentException("Replacement destination account '${replacement.transferDetails.destinationAccountId}' does not exist.")
                 destAccount = destEntity.toDomain()
+                require(!destAccount.isArchived) {
+                    "Cannot transfer replacement to archived account '${destAccount.name}'."
+                }
                 accountsMap[destAccount.id] = destAccount
             }
 

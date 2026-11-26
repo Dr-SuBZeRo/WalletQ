@@ -109,6 +109,52 @@ object MoneyInputParser {
         }
     }
 
+    fun parseBalanceInput(
+        input: String,
+        currency: Currency,
+        allowNegative: Boolean = false
+    ): ParseResult<Money> {
+        val trimmed = input.trim()
+        if (trimmed.isEmpty()) {
+            return ParseResult.Success(Money.zero(currency))
+        }
+        if (!allowNegative && trimmed.contains('-')) {
+            return ParseResult.Error("Opening balance cannot be negative for this account type.")
+        }
+        if (trimmed.contains('+')) {
+            return ParseResult.Error("Enter a valid numeric balance without '+' sign.")
+        }
+        if (trimmed.any { it.equals('e', ignoreCase = true) }) {
+            return ParseResult.Error("Invalid numeric format.")
+        }
+
+        val decimal = try {
+            BigDecimal(trimmed)
+        } catch (_: NumberFormatException) {
+            return ParseResult.Error("Enter a valid number.")
+        }
+
+        if (!allowNegative && decimal < BigDecimal.ZERO) {
+            return ParseResult.Error("Opening balance cannot be negative for this account type.")
+        }
+
+        val stripped = decimal.stripTrailingZeros()
+        val effectiveScale = if (stripped.scale() < 0) 0 else stripped.scale()
+        if (effectiveScale > currency.decimalPlaces) {
+            return if (currency.decimalPlaces == 0) {
+                ParseResult.Error("${currency.code} does not support decimal places.")
+            } else {
+                ParseResult.Error("${currency.code} supports at most ${currency.decimalPlaces} decimal places.")
+            }
+        }
+
+        return try {
+            ParseResult.Success(Money.fromBigDecimal(decimal, currency))
+        } catch (_: ArithmeticException) {
+            ParseResult.Error("Balance exceeds maximum supported limit.")
+        }
+    }
+
     fun formatExchangeRate(rate: BigDecimal): String {
         return rate.setScale(6, RoundingMode.HALF_EVEN)
             .stripTrailingZeros()

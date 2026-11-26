@@ -60,6 +60,9 @@ interface TransactionDao {
     @Query("SELECT COUNT(*) FROM transactions WHERE categoryId = :categoryId")
     suspend fun countTransactionsUsingCategory(categoryId: String): Int
 
+    @Query("SELECT COUNT(*) FROM transactions WHERE sourceAccountId = :accountId OR destinationAccountId = :accountId")
+    suspend fun countTransactionsForAccount(accountId: String): Int
+
     @Query("SELECT COUNT(*) FROM transactions")
     suspend fun getCount(): Int
 }

@@ -4,8 +4,8 @@
 **Developer:** SuBZeRo  
 **Package:** `com.walletq`  
 **License:** Apache License 2.0  
-**Current Phase:** 2C — Transaction Management UI  
-**Database Schema Version:** 3  
+**Current Phase:** 3A — Account Management Foundation  
+**Database Schema Version:** 4  
 
 ---
 
@@ -126,3 +126,21 @@ The presentation layer connects `TransactionRepository`, `CategoryRepository`, a
    - `AddTransactionSheet`: Income/Expense entry sheet with ownership context switching, account currency display, category picker, and Material 3 date picker.
    - `TransferSheet`: Dedicated transfer interface with same-account prevention, prefilled/manual exchange rate support, and live Banker-rounded conversion preview.
    - `TransactionDetailsSheet`: Full audit view showing transfer metadata, original/reversal references, double-entry ledger entries, and explicit reversal confirmation dialog.
+
+---
+
+## 6. Account Management Foundation (Phase 3A)
+
+1. **Schema & Domain Extensions (`MIGRATION_3_4`, Version 4):**
+   - `AccountEntity` and `Account` include `openingBalanceDateEpochMs`, optional `description`, `iconIdentifier`, and `colorIdentifier`, with non-destructive `ALTER TABLE` migration from Version 3.
+   - `AccountType` exposes stable enum identifiers (`CASH`, `BANK`, `SAVINGS`, `CREDIT_CARD`, `INVESTMENT`, `OTHER`) with display labels.
+
+2. **Repository & Ledger Integrity (`AccountRepository`, `AccountRepositoryImpl`):**
+   - Enforces ownership boundaries (Personal vs Household membership verification) and duplicate account name prevention within each ownership scope.
+   - Preserves `initialBalanceMinorUnits` and `openingBalanceDateEpochMs` on descriptive edits (`updateAccountDetails`).
+   - Provides auditable balance corrections (`adjustBalance`) that record `"Opening balance adjustment"` transactions and ledger entries instead of mutating historical records.
+   - Prevents physical deletion of accounts with financial history (`deleteAccount`), enforces ledger-projection consistency before archiving (`archiveAccount`), and excludes archived accounts from new transaction selectors while keeping them visible in historical transaction views.
+
+3. **Presentation Layer (`com.walletq.feature.accounts`):**
+   - `AccountViewModel` & `AccountsUiState`: Groups active balances strictly by currency (never summing unlike currencies), supports search, ownership, type, and archived filters.
+   - `AccountsScreen`, `AddEditAccountSheet`, `AccountDetailsSheet`, `AdjustBalanceSheet`: Material 3 account management experience with account-specific transaction history and archive confirmation.

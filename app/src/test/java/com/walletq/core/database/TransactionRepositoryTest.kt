@@ -99,6 +99,9 @@ class TransactionRepositoryTest {
         override suspend fun countTransactionsUsingCategory(categoryId: String): Int =
             transactions.values.count { it.categoryId == categoryId }
 
+        override suspend fun countTransactionsForAccount(accountId: String): Int =
+            transactions.values.count { it.sourceAccountId == accountId || it.destinationAccountId == accountId }
+
         override suspend fun getCount(): Int = transactions.size
     }
 
@@ -158,10 +161,20 @@ class TransactionRepositoryTest {
         override fun getAccountsByHouseholdFlow(householdId: String): Flow<List<AccountEntity>> = flowOf(accounts.values.filter { it.householdId == householdId })
         override fun getPersonalAccountsByProfileFlow(profileId: String): Flow<List<AccountEntity>> = flowOf(accounts.values.filter { it.profileId == profileId && it.ownershipType == OwnershipType.PERSONAL })
         override fun getAllActiveAccountsFlow(): Flow<List<AccountEntity>> = flowOf(accounts.values.filter { !it.isArchived })
+        override fun observeAllAccountsFlow(): Flow<List<AccountEntity>> = flowOf(accounts.values.toList())
+        override fun observeAccountByIdFlow(id: String): Flow<AccountEntity?> = flowOf(accounts[id])
+        override suspend fun findByNameInPersonalScope(profileId: String, name: String): AccountEntity? =
+            accounts.values.find { it.profileId == profileId && it.ownershipType == OwnershipType.PERSONAL && it.name.trim().equals(name.trim(), ignoreCase = true) }
+        override suspend fun findByNameInHouseholdScope(householdId: String, name: String): AccountEntity? =
+            accounts.values.find { it.householdId == householdId && it.ownershipType == OwnershipType.HOUSEHOLD && it.name.trim().equals(name.trim(), ignoreCase = true) }
         override suspend fun getCount(): Int = accounts.size
         override suspend fun updateCurrentBalance(id: String, balance: Long) {
             val existing = accounts[id] ?: return
             accounts[id] = existing.copy(currentBalanceMinorUnits = balance)
+        }
+        override suspend fun setArchived(id: String, isArchived: Boolean) {
+            val existing = accounts[id] ?: return
+            accounts[id] = existing.copy(isArchived = isArchived)
         }
     }
 
@@ -748,5 +761,56 @@ class TransactionRepositoryTest {
             updatedAtEpochMs = 1700000096000L
         )
         assertTrue(repository.recordTransaction(crossProfileCatTx).isFailure)
+    }
+
+    @Test
+    fun archivedAccount_blocksNewTransactions_butAllowsReversalOfHistoricalTransaction() = runTest {
+        val initialTx = Transaction(
+            id = "tx-before-archive",
+            type = TransactionType.EXPENSE,
+            amount = Money(10000L, Currency.INR),
+            accountId = "acc-personal-cash",
+            categoryId = "cat-food",
+            transactionDateEpochMs = 1700000097000L,
+            description = "Lunch before archive",
+            ownershipType = OwnershipType.PERSONAL,
+            ownerProfileId = "profile-1",
+            createdAtEpochMs = 1700000097000L,
+            updatedAtEpochMs = 1700000097000L
+        )
+        assertTrue(repository.recordTransaction(initialTx).isSuccess)
+        assertEquals(90000L, repository.calculateAccountBalance("acc-personal-cash"))
+
+        // Archive the account
+        accountDao.setArchived("acc-personal-cash", true)
+
+        // New transaction on archived account must fail
+        val newTxOnArchived = initialTx.copy(id = "tx-after-archive", description = "Should fail")
+        assertTrue(repository.recordTransaction(newTxOnArchived).isFailure)
+
+        // Transfer to archived destination must fail
+        val transferToArchived = Transaction(
+            id = "tx-transfer-to-archived",
+            type = TransactionType.TRANSFER,
+            amount = Money(5000L, Currency.INR),
+            accountId = "acc-personal-bank",
+            transactionDateEpochMs = 1700000098000L,
+            description = "Transfer to archived",
+            ownershipType = OwnershipType.PERSONAL,
+            ownerProfileId = "profile-1",
+            transferDetails = TransferDetails(
+                destinationAccountId = "acc-personal-cash",
+                destinationAmount = Money(5000L, Currency.INR),
+                appliedExchangeRate = BigDecimal.ONE
+            ),
+            createdAtEpochMs = 1700000098000L,
+            updatedAtEpochMs = 1700000098000L
+        )
+        assertTrue(repository.recordTransaction(transferToArchived).isFailure)
+
+        // Reversing the historical transaction must still succeed and restore balance
+        val reversal = repository.reverseTransaction("tx-before-archive", "Correction after archive")
+        assertTrue(reversal.isSuccess)
+        assertEquals(100000L, repository.calculateAccountBalance("acc-personal-cash"))
     }
 }

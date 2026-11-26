@@ -47,5 +47,9 @@ data class AccountEntity(
     val initialBalanceMinorUnits: Long,
     val currentBalanceMinorUnits: Long,
     val isArchived: Boolean,
-    val createdAtEpochMs: Long
+    val createdAtEpochMs: Long,
+    val openingBalanceDateEpochMs: Long = createdAtEpochMs,
+    val description: String? = null,
+    val iconIdentifier: String? = null,
+    val colorIdentifier: String? = null
 )

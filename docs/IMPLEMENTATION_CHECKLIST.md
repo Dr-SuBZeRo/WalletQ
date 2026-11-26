@@ -59,3 +59,11 @@
 - [x] Implement `TransactionDetailsSheet` with double-entry ledger display and reversal confirmation dialog.
 - [x] Add unit tests (`MoneyInputParserTest`, `TransactionViewModelTest`) and Compose UI tests (`ActivityScreenTest`).
 - [x] Verify `testDebugUnitTest`, `assembleDebug`, `lintDebug` and update documentation.
+
+## Phase 3A: Account Management Foundation
+- [x] Extend `Account` and `AccountEntity` with `openingBalanceDateEpochMs`, `description`, `iconIdentifier`, and `colorIdentifier` (`MIGRATION_3_4`, Room DB v4).
+- [x] Implement `AccountRepository` and `AccountRepositoryImpl` with ownership validation, duplicate-name checks, auditable balance adjustments, archival consistency guards, and deletion protection.
+- [x] Enforce archived-account exclusion in new transactions (`TransactionRepositoryImpl` & `TransactionViewModel`) while preserving historical display (`accountsById`).
+- [x] Implement `AccountViewModel`, `AccountsUiState`, `AccountsScreen`, `AddEditAccountSheet`, `AccountDetailsSheet`, and `AdjustBalanceSheet`.
+- [x] Add `AccountRepositoryTest`, `AccountViewModelTest`, `MIGRATION_3_4` tests, and archived-account regression tests in `TransactionRepositoryTest` and `TransactionViewModelTest`.
+- [x] Verify `testDebugUnitTest`, `assembleDebug`, `lintDebug` and update documentation.

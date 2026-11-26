@@ -36,9 +36,24 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE isArchived = 0 ORDER BY name ASC")
     fun getAllActiveAccountsFlow(): Flow<List<AccountEntity>>
 
+    @Query("SELECT * FROM accounts ORDER BY isArchived ASC, name ASC")
+    fun observeAllAccountsFlow(): Flow<List<AccountEntity>>
+
+    @Query("SELECT * FROM accounts WHERE id = :id")
+    fun observeAccountByIdFlow(id: String): Flow<AccountEntity?>
+
+    @Query("SELECT * FROM accounts WHERE profileId = :profileId AND ownershipType = 'PERSONAL' AND LOWER(TRIM(name)) = LOWER(TRIM(:name)) LIMIT 1")
+    suspend fun findByNameInPersonalScope(profileId: String, name: String): AccountEntity?
+
+    @Query("SELECT * FROM accounts WHERE householdId = :householdId AND ownershipType = 'HOUSEHOLD' AND LOWER(TRIM(name)) = LOWER(TRIM(:name)) LIMIT 1")
+    suspend fun findByNameInHouseholdScope(householdId: String, name: String): AccountEntity?
+
     @Query("SELECT COUNT(*) FROM accounts")
     suspend fun getCount(): Int
 
     @Query("UPDATE accounts SET currentBalanceMinorUnits = :balance WHERE id = :id")
     suspend fun updateCurrentBalance(id: String, balance: Long)
+
+    @Query("UPDATE accounts SET isArchived = :isArchived WHERE id = :id")
+    suspend fun setArchived(id: String, isArchived: Boolean)
 }

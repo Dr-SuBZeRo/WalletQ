@@ -136,8 +136,13 @@ class TransactionViewModelTest {
         override fun getAccountsByHouseholdFlow(householdId: String): Flow<List<AccountEntity>> = flowOf(emptyList())
         override fun getPersonalAccountsByProfileFlow(profileId: String): Flow<List<AccountEntity>> = flowOf(emptyList())
         override fun getAllActiveAccountsFlow(): Flow<List<AccountEntity>> = accountsFlow.map { it.filter { a -> !a.isArchived } }
+        override fun observeAllAccountsFlow(): Flow<List<AccountEntity>> = accountsFlow
+        override fun observeAccountByIdFlow(id: String): Flow<AccountEntity?> = accountsFlow.map { list -> list.find { it.id == id } }
+        override suspend fun findByNameInPersonalScope(profileId: String, name: String): AccountEntity? = null
+        override suspend fun findByNameInHouseholdScope(householdId: String, name: String): AccountEntity? = null
         override suspend fun getCount(): Int = accountsFlow.value.size
         override suspend fun updateCurrentBalance(id: String, balance: Long) {}
+        override suspend fun setArchived(id: String, isArchived: Boolean) {}
     }
 
     private class FakeProfileDao : ProfileDao {
@@ -488,5 +493,45 @@ class TransactionViewModelTest {
 
         viewModel.onDateRangeFilterChanged(DateRangeFilter.TODAY)
         assertEquals(listOf("t1"), viewModel.uiState.value.transactions.map { it.id })
+    }
+
+    @Test
+    fun archivedAccounts_excludedFromSelectorsButPreservedInAccountsById() = runTest {
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.uiState.collect()
+        }
+        accountDao.accountsFlow.value = listOf(
+            AccountEntity(
+                id = "acc-active",
+                profileId = "default-personal",
+                ownershipType = OwnershipType.PERSONAL,
+                name = "Active Bank",
+                type = AccountType.BANK,
+                currencyCode = "INR",
+                initialBalanceMinorUnits = 10000L,
+                currentBalanceMinorUnits = 10000L,
+                isArchived = false,
+                createdAtEpochMs = 1000L
+            ),
+            AccountEntity(
+                id = "acc-archived",
+                profileId = "default-personal",
+                ownershipType = OwnershipType.PERSONAL,
+                name = "Archived Wallet",
+                type = AccountType.CASH,
+                currencyCode = "INR",
+                initialBalanceMinorUnits = 5000L,
+                currentBalanceMinorUnits = 5000L,
+                isArchived = true,
+                createdAtEpochMs = 1000L
+            )
+        )
+
+        val state = viewModel.uiState.value
+        assertEquals(listOf("acc-active"), state.accounts.map { it.id })
+        assertNotNull(state.accountsById["acc-archived"])
+        assertEquals("Archived Wallet", state.accountsById["acc-archived"]?.name)
+
+        job.cancel()
     }
 }

@@ -36,7 +36,7 @@ import com.walletq.core.model.Category
         TransactionEntity::class,
         LedgerEntryEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -254,6 +254,16 @@ abstract class WalletQDatabase : RoomDatabase() {
                         )
                     )
                 }
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `accounts` ADD COLUMN `openingBalanceDateEpochMs` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("UPDATE `accounts` SET `openingBalanceDateEpochMs` = `createdAtEpochMs` WHERE `openingBalanceDateEpochMs` = 0")
+                db.execSQL("ALTER TABLE `accounts` ADD COLUMN `description` TEXT")
+                db.execSQL("ALTER TABLE `accounts` ADD COLUMN `iconIdentifier` TEXT")
+                db.execSQL("ALTER TABLE `accounts` ADD COLUMN `colorIdentifier` TEXT")
             }
         }
     }

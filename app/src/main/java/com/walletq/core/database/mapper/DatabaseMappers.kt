@@ -30,7 +30,11 @@ fun AccountEntity.toDomain(): Account = Account(
     initialBalanceMinorUnits = initialBalanceMinorUnits,
     currentBalanceMinorUnits = currentBalanceMinorUnits,
     isArchived = isArchived,
-    createdAtEpochMs = createdAtEpochMs
+    createdAtEpochMs = createdAtEpochMs,
+    openingBalanceDateEpochMs = openingBalanceDateEpochMs,
+    description = description,
+    iconIdentifier = iconIdentifier,
+    colorIdentifier = colorIdentifier
 )
 
 fun Account.toEntity(): AccountEntity = AccountEntity(
@@ -44,7 +48,11 @@ fun Account.toEntity(): AccountEntity = AccountEntity(
     initialBalanceMinorUnits = initialBalanceMinorUnits,
     currentBalanceMinorUnits = currentBalanceMinorUnits,
     isArchived = isArchived,
-    createdAtEpochMs = createdAtEpochMs
+    createdAtEpochMs = createdAtEpochMs,
+    openingBalanceDateEpochMs = openingBalanceDateEpochMs,
+    description = description,
+    iconIdentifier = iconIdentifier,
+    colorIdentifier = colorIdentifier
 )
 
 fun HouseholdEntity.toDomain(): Household = Household(

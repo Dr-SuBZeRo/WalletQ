@@ -186,4 +186,34 @@ class MigrationTest {
 
         assertTrue(insertedIds.containsAll(expectedIds))
     }
+
+    @Test
+    fun migration_3_to_4_addsAccountMetadataColumnsAndBackfillsOpeningDate() {
+        val executedSqlList = mutableListOf<String>()
+
+        val db = Proxy.newProxyInstance(
+            SupportSQLiteDatabase::class.java.classLoader,
+            arrayOf(SupportSQLiteDatabase::class.java)
+        ) { _, method, args ->
+            when (method.name) {
+                "execSQL" -> {
+                    if (args != null && args.isNotEmpty() && args[0] is String) {
+                        executedSqlList.add(args[0] as String)
+                    }
+                    null
+                }
+                else -> null
+            }
+        } as SupportSQLiteDatabase
+
+        WalletQDatabase.MIGRATION_3_4.migrate(db)
+
+        val fullSql = executedSqlList.joinToString("\n")
+        assertTrue(fullSql.contains("ALTER TABLE `accounts` ADD COLUMN `openingBalanceDateEpochMs` INTEGER NOT NULL DEFAULT 0"))
+        assertTrue(fullSql.contains("UPDATE `accounts` SET `openingBalanceDateEpochMs` = `createdAtEpochMs` WHERE `openingBalanceDateEpochMs` = 0"))
+        assertTrue(fullSql.contains("ALTER TABLE `accounts` ADD COLUMN `description` TEXT"))
+        assertTrue(fullSql.contains("ALTER TABLE `accounts` ADD COLUMN `iconIdentifier` TEXT"))
+        assertTrue(fullSql.contains("ALTER TABLE `accounts` ADD COLUMN `colorIdentifier` TEXT"))
+        assertFalse(fullSql.uppercase(Locale.ROOT).contains("DROP TABLE"))
+    }
 }

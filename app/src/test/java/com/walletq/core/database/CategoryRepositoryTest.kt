@@ -75,6 +75,9 @@ class CategoryRepositoryTest {
         override suspend fun countTransactionsUsingCategory(categoryId: String): Int =
             transactions.count { it.categoryId == categoryId }
 
+        override suspend fun countTransactionsForAccount(accountId: String): Int =
+            transactions.count { it.sourceAccountId == accountId || it.destinationAccountId == accountId }
+
         override suspend fun insert(transaction: TransactionEntity) { transactions.add(transaction) }
         override suspend fun insertAll(transactions: List<TransactionEntity>) { this.transactions.addAll(transactions) }
         override suspend fun update(transaction: TransactionEntity) {}

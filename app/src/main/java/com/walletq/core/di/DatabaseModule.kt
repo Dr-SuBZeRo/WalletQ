@@ -36,7 +36,8 @@ object DatabaseModule {
             .addCallback(DatabaseCallback())
             .addMigrations(
                 WalletQDatabase.MIGRATION_1_2,
-                WalletQDatabase.MIGRATION_2_3
+                WalletQDatabase.MIGRATION_2_3,
+                WalletQDatabase.MIGRATION_3_4
             )
             .build()
     }

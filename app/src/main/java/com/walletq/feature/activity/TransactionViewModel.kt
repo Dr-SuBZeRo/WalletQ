@@ -82,7 +82,7 @@ class TransactionViewModel @Inject constructor(
 
     private val coreDataFlow: Flow<CoreDataBundle> = combine(
         transactionRepository.getTransactions(),
-        accountDao.getAllActiveAccountsFlow().map { list -> list.map { it.toDomain() } },
+        accountDao.observeAllAccountsFlow().map { list -> list.map { it.toDomain() } },
         categoryRepository.getActiveCategories(),
         householdDao.getAllHouseholdsFlow().map { list -> list.map { it.toDomain() } },
         profileDao.getDefaultProfileFlow().map { it?.id ?: "default-personal" }
@@ -128,6 +128,7 @@ class TransactionViewModel @Inject constructor(
     }
 
     val uiState: StateFlow<ActivityUiState> = combine(coreDataFlow, uiMetaFlow) { data, meta ->
+        val activeAccounts = data.accounts.filter { !it.isArchived }
         val accountsById = data.accounts.associateBy { it.id }
         val categoriesById = data.categories.associateBy { it.id }
         val householdsById = data.households.associateBy { it.id }
@@ -149,7 +150,7 @@ class TransactionViewModel @Inject constructor(
             errorMessage = meta.streamError,
             transactions = filtered,
             groupedTransactions = grouped,
-            accounts = data.accounts,
+            accounts = activeAccounts,
             accountsById = accountsById,
             categories = data.categories,
             categoriesById = categoriesById,
