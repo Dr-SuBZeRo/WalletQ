@@ -22,6 +22,13 @@ private const val ROUTE_BUDGETS = "budgets"
 fun WalletQNavHost(
     navController: NavHostController,
     userPreferences: UserPreferences,
+    pendingActivityAction: String?,
+    onActivityActionConsumed: () -> Unit,
+    pendingAddAccount: Boolean,
+    onAddAccountConsumed: () -> Unit,
+    onNavigateToDestination: (TopLevelDestination) -> Unit,
+    onLaunchActivityAction: (String) -> Unit,
+    onLaunchAddAccount: () -> Unit,
     onThemeModeChanged: (ThemeMode) -> Unit,
     onDynamicColorChanged: (Boolean) -> Unit,
     onDefaultCurrencyChanged: (String) -> Unit,
@@ -38,13 +45,27 @@ fun WalletQNavHost(
         modifier = modifier
     ) {
         composable(TopLevelDestination.HOME.route) {
-            HomeScreen(defaultCurrencyCode = userPreferences.defaultCurrencyCode)
+            HomeScreen(
+                onNavigateToAccounts = { onNavigateToDestination(TopLevelDestination.ACCOUNTS) },
+                onNavigateToActivity = { onNavigateToDestination(TopLevelDestination.ACTIVITY) },
+                onNavigateToBudgets = { navController.navigate(ROUTE_BUDGETS) },
+                onQuickExpense = { onLaunchActivityAction("EXPENSE") },
+                onQuickIncome = { onLaunchActivityAction("INCOME") },
+                onQuickTransfer = { onLaunchActivityAction("TRANSFER") },
+                onQuickAddAccount = onLaunchAddAccount
+            )
         }
         composable(TopLevelDestination.ACTIVITY.route) {
-            ActivityScreen()
+            ActivityScreen(
+                initialAction = pendingActivityAction,
+                onInitialActionConsumed = onActivityActionConsumed
+            )
         }
         composable(TopLevelDestination.ACCOUNTS.route) {
-            AccountsScreen()
+            AccountsScreen(
+                openAddOnStart = pendingAddAccount,
+                onOpenAddConsumed = onAddAccountConsumed
+            )
         }
         composable(TopLevelDestination.REPORTS.route) {
             ReportsScreen()

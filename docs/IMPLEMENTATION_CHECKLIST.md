@@ -90,3 +90,11 @@
 - [x] Build reusable Midnight Luxe components (`WalletQCard`, `WalletQSummaryCard`, `WalletQSectionHeader`, `WalletQButtons`, `WalletQInputs`, `WalletQStatusIndicator`, `WalletQLoadingPlaceholder`, `WalletQOverlays`, `WalletQFinancialRows`).
 - [x] Redesign 5-destination bottom navigation (`WalletQBottomBar`) with system inset handling and `WalletQNavHost` screen transitions.
 - [x] Verify `testDebugUnitTest`, `assembleDebug`, `lintDebug` and update documentation.
+
+## UI/UX Redesign Phase B1: IvyWallet-Inspired Home & Accounts Transformation
+- [x] Extend `Color.kt` with vibrant accent palette (`VibrantEmerald`, `VibrantTurquoise`, `VibrantPurple`, `VibrantElectricBlue`, `VibrantWarmYellow`, `VibrantCoral`, `VibrantPink`) and `WalletQVibrantPalette.accountCardThemes`.
+- [x] Implement `HomeViewModel` & `HomeUiState` backed by real `AccountRepository`, `TransactionRepository`, `BudgetRepository`, and `CategoryRepository` flows (zero fabricated data).
+- [x] Redesign `HomeScreen` (removed developer architecture cards; added greeting, month & ownership selectors, Net Worth hero card with visibility crossfade, vibrant Income & Expense cards, Cash Flow, Quick Actions, Account Overview, Budget Overview, and Recent Activity).
+- [x] Redesign `AccountsScreen` with vibrant gradient account cards, currency-grouped summaries, credit card liability presentation, and actual monthly income/expense summaries per account.
+- [x] Upgrade `WalletQBottomBar` with integrated central Add action opening Quick Action sheet wired to real transaction/account workflows.
+- [x] Add `HomeViewModelTest` and verify `testDebugUnitTest`, `assembleDebug`, `lintDebug`.

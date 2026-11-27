@@ -1,8 +1,11 @@
 package com.walletq.feature.accounts
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +14,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,13 +33,10 @@ import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -53,15 +54,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.walletq.core.designsystem.Dimensions
-import com.walletq.core.designsystem.ExpenseRed
-import com.walletq.core.designsystem.component.WalletQCard
+import com.walletq.core.designsystem.WalletQMonetaryTypography
+import com.walletq.core.designsystem.WalletQMotion
+import com.walletq.core.designsystem.WalletQThemeTokens
+import com.walletq.core.designsystem.WalletQVibrantPalette
 import com.walletq.core.designsystem.component.WalletQEmptyState
+import com.walletq.core.designsystem.component.WalletQFilterChip
+import com.walletq.core.designsystem.component.WalletQLoadingState
+import com.walletq.core.designsystem.component.WalletQSectionHeader
+import com.walletq.core.designsystem.component.WalletQTextField
 import com.walletq.core.designsystem.component.WalletQTopBar
+import com.walletq.core.designsystem.rememberReducedMotion
 import com.walletq.core.model.Account
 import com.walletq.core.model.AccountType
 import com.walletq.core.model.Household
@@ -76,11 +87,20 @@ import com.walletq.feature.activity.OwnershipFilter
 @Composable
 fun AccountsScreen(
     modifier: Modifier = Modifier,
+    openAddOnStart: Boolean = false,
+    onOpenAddConsumed: () -> Unit = {},
     viewModel: AccountViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val accountFormState by viewModel.accountFormState.collectAsStateWithLifecycle()
     val balanceAdjustmentState by viewModel.balanceAdjustmentState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(openAddOnStart) {
+        if (openAddOnStart) {
+            viewModel.openAddAccountSheet()
+            onOpenAddConsumed()
+        }
+    }
 
     AccountsScreenContent(
         uiState = uiState,
@@ -151,6 +171,8 @@ fun AccountsScreenContent(
     onSnackbarConsumed: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val tokens = WalletQThemeTokens.colors
+    val reducedMotion = rememberReducedMotion()
     val snackbarHostState = remember { SnackbarHostState() }
     var showFilters by rememberSaveable { mutableStateOf(false) }
 
@@ -168,6 +190,8 @@ fun AccountsScreenContent(
         uiState.filterState.showArchived
 
     Scaffold(
+        containerColor = tokens.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             WalletQTopBar(
                 title = "Accounts & Wallets",
@@ -179,7 +203,7 @@ fun AccountsScreenContent(
                             tint = if (hasActiveFilters) {
                                 MaterialTheme.colorScheme.primary
                             } else {
-                                MaterialTheme.colorScheme.onBackground
+                                tokens.secondaryText
                             }
                         )
                     }
@@ -191,6 +215,8 @@ fun AccountsScreenContent(
             if (!uiState.isLoading) {
                 ExtendedFloatingActionButton(
                     onClick = onAddAccountClick,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                     icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                     text = { Text("Add Account") }
                 )
@@ -200,14 +226,10 @@ fun AccountsScreenContent(
     ) { innerPadding ->
         when {
             uiState.isLoading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+                WalletQLoadingState(
+                    message = "Loading accounts...",
+                    modifier = Modifier.padding(innerPadding)
+                )
             }
 
             uiState.errorMessage != null -> {
@@ -227,7 +249,11 @@ fun AccountsScreenContent(
                         .fillMaxSize()
                         .padding(innerPadding)
                 ) {
-                    AnimatedVisibility(visible = showFilters) {
+                    AnimatedVisibility(
+                        visible = showFilters,
+                        enter = WalletQMotion.contentEnter(reducedMotion),
+                        exit = WalletQMotion.contentExit(reducedMotion)
+                    ) {
                         AccountFilterPanel(
                             filterState = uiState.filterState,
                             onSearchQueryChanged = onSearchQueryChanged,
@@ -270,8 +296,8 @@ fun AccountsScreenContent(
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(
-                                start = Dimensions.spaceMedium,
-                                end = Dimensions.spaceMedium,
+                                start = Dimensions.screenHorizontalPadding,
+                                end = Dimensions.screenHorizontalPadding,
                                 top = Dimensions.spaceSmall,
                                 bottom = 96.dp
                             ),
@@ -285,18 +311,20 @@ fun AccountsScreenContent(
 
                             if (uiState.personalAccounts.isNotEmpty()) {
                                 item(key = "personal_header") {
-                                    SectionHeader(
+                                    WalletQSectionHeader(
                                         title = "Personal Accounts",
-                                        count = uiState.personalAccounts.size
+                                        trailingText = "${uiState.personalAccounts.size}"
                                     )
                                 }
                                 items(
                                     items = uiState.personalAccounts,
                                     key = { it.id }
                                 ) { account ->
-                                    AccountCard(
+                                    VibrantAccountCard(
                                         account = account,
                                         household = null,
+                                        monthlySummary = uiState.monthlySummariesByAccountId[account.id],
+                                        reducedMotion = reducedMotion,
                                         onClick = { onAccountClick(account.id) }
                                     )
                                 }
@@ -304,18 +332,20 @@ fun AccountsScreenContent(
 
                             if (uiState.householdAccounts.isNotEmpty()) {
                                 item(key = "household_header") {
-                                    SectionHeader(
+                                    WalletQSectionHeader(
                                         title = "Household Accounts",
-                                        count = uiState.householdAccounts.size
+                                        trailingText = "${uiState.householdAccounts.size}"
                                     )
                                 }
                                 items(
                                     items = uiState.householdAccounts,
                                     key = { it.id }
                                 ) { account ->
-                                    AccountCard(
+                                    VibrantAccountCard(
                                         account = account,
                                         household = account.householdId?.let { uiState.householdsById[it] },
+                                        monthlySummary = uiState.monthlySummariesByAccountId[account.id],
+                                        reducedMotion = reducedMotion,
                                         onClick = { onAccountClick(account.id) }
                                     )
                                 }
@@ -323,18 +353,20 @@ fun AccountsScreenContent(
 
                             if (uiState.archivedAccounts.isNotEmpty()) {
                                 item(key = "archived_header") {
-                                    SectionHeader(
+                                    WalletQSectionHeader(
                                         title = "Archived Accounts",
-                                        count = uiState.archivedAccounts.size
+                                        trailingText = "${uiState.archivedAccounts.size}"
                                     )
                                 }
                                 items(
                                     items = uiState.archivedAccounts,
                                     key = { it.id }
                                 ) { account ->
-                                    AccountCard(
+                                    VibrantAccountCard(
                                         account = account,
                                         household = account.householdId?.let { uiState.householdsById[it] },
+                                        monthlySummary = uiState.monthlySummariesByAccountId[account.id],
+                                        reducedMotion = reducedMotion,
                                         onClick = { onAccountClick(account.id) }
                                     )
                                 }
@@ -400,11 +432,12 @@ fun AccountsScreenContent(
 
 @Composable
 private fun CurrencySummaryRow(summaries: List<CurrencyBalanceSummary>) {
+    val tokens = WalletQThemeTokens.colors
     Column(verticalArrangement = Arrangement.spacedBy(Dimensions.spaceSmall)) {
         Text(
             text = "Total Balances by Currency",
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MaterialTheme.typography.labelLarge,
+            color = tokens.secondaryText
         )
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(Dimensions.spaceSmall)
@@ -413,25 +446,34 @@ private fun CurrencySummaryRow(summaries: List<CurrencyBalanceSummary>) {
                 val money = Money(summary.totalMinorUnits, summary.currency)
                 Surface(
                     shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.primaryContainer
+                    color = Color.Transparent,
+                    modifier = Modifier
+                        .clip(MaterialTheme.shapes.large)
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    WalletQVibrantPalette.netWorthGradientStart,
+                                    WalletQVibrantPalette.netWorthGradientEnd
+                                )
+                            )
+                        )
                 ) {
                     Column(
                         modifier = Modifier.padding(
                             horizontal = Dimensions.spaceMedium,
-                            vertical = Dimensions.spaceSmall
+                            vertical = Dimensions.spaceMediumSmall
                         )
                     ) {
                         Text(
                             text = "${summary.currency.code} • ${summary.accountCount} account(s)",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            color = Color(0xFFB7C5E3)
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = money.format(),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            style = WalletQMonetaryTypography.large,
+                            color = Color.White
                         )
                     }
                 }
@@ -441,90 +483,145 @@ private fun CurrencySummaryRow(summaries: List<CurrencyBalanceSummary>) {
 }
 
 @Composable
-private fun SectionHeader(title: String, count: Int) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
-        )
-        Text(
-            text = count.toString(),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun AccountCard(
+private fun VibrantAccountCard(
     account: Account,
     household: Household?,
+    monthlySummary: AccountMonthlySummary?,
+    reducedMotion: Boolean,
     onClick: () -> Unit
 ) {
-    val accentColor = AccountVisuals.resolveColor(
-        account.colorIdentifier,
-        MaterialTheme.colorScheme.primary
-    )
+    val theme = WalletQVibrantPalette.resolveAccountTheme(account.colorIdentifier, account.id)
     val balance = Money(account.currentBalanceMinorUnits, account.currency)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed && !reducedMotion) 0.985f else 1f,
+        animationSpec = WalletQMotion.fastSpec(reducedMotion),
+        label = "account_card_scale"
+    )
 
-    WalletQCard(
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = Color.Transparent,
         modifier = Modifier
-            .alpha(if (account.isArchived) 0.65f else 1f)
-            .clickable(onClick = onClick)
+            .fillMaxWidth()
+            .alpha(if (account.isArchived) 0.6f else 1f)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(MaterialTheme.shapes.large)
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(theme.startColor, theme.endColor)
+                )
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Dimensions.spaceMedium)
+        Column(
+            modifier = Modifier.padding(Dimensions.cardPadding),
+            verticalArrangement = Arrangement.spacedBy(Dimensions.spaceSmall)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(accentColor.copy(alpha = 0.14f)),
-                contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(
-                    imageVector = AccountVisuals.resolveIcon(account.type, account.iconIdentifier),
-                    contentDescription = null,
-                    tint = accentColor
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = account.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                val ownershipText = if (account.ownershipType == OwnershipType.HOUSEHOLD) {
-                    household?.name ?: "Household"
-                } else {
-                    "Personal"
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Dimensions.spaceMediumSmall)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(Dimensions.iconBadgeContainer)
+                            .clip(CircleShape)
+                            .background(theme.contentColor.copy(alpha = 0.18f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = AccountVisuals.resolveIcon(account.type, account.iconIdentifier),
+                            contentDescription = null,
+                            tint = theme.contentColor,
+                            modifier = Modifier.size(Dimensions.iconMedium)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = account.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = theme.contentColor
+                        )
+                        val ownershipText = if (account.ownershipType == OwnershipType.HOUSEHOLD) {
+                            household?.name ?: "Household"
+                        } else {
+                            "Personal"
+                        }
+                        Text(
+                            text = "${account.type.displayName} • $ownershipText",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = theme.contentColor.copy(alpha = 0.82f)
+                        )
+                    }
                 }
+
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = theme.contentColor.copy(alpha = 0.16f)
+                ) {
+                    Text(
+                        text = if (account.isArchived) "Archived" else account.currency.code,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = theme.contentColor,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            // Large readable balance
+            Text(
+                text = balance.format(),
+                style = WalletQMonetaryTypography.large,
+                color = theme.contentColor
+            )
+
+            // Credit Card Liability Presentation
+            if (account.type == AccountType.CREDIT_CARD && balance.isNegative()) {
                 Text(
-                    text = "${account.type.displayName} • $ownershipText • ${account.currency.code}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "Outstanding Liability: ${(-balance).format()}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = theme.contentColor.copy(alpha = 0.9f)
                 )
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = balance.format(),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = if (balance.isNegative()) ExpenseRed else MaterialTheme.colorScheme.onSurface
-                )
-                if (account.isArchived) {
-                    Text(
-                        text = "Archived",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
+
+            // Monthly Income & Expense summaries per account when real data exists
+            if (monthlySummary != null &&
+                (monthlySummary.incomeMinorUnits > 0L || monthlySummary.expenseMinorUnits > 0L)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Dimensions.spaceMedium)
+                ) {
+                    if (monthlySummary.incomeMinorUnits > 0L) {
+                        val inc = Money(monthlySummary.incomeMinorUnits, account.currency).format()
+                        Text(
+                            text = "This month +$inc",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = theme.contentColor.copy(alpha = 0.88f)
+                        )
+                    }
+                    if (monthlySummary.expenseMinorUnits > 0L) {
+                        val exp = Money(monthlySummary.expenseMinorUnits, account.currency).format()
+                        Text(
+                            text = "Spent -$exp",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = theme.contentColor.copy(alpha = 0.88f)
+                        )
+                    }
                 }
             }
         }
@@ -544,13 +641,14 @@ private fun AccountFilterPanel(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Dimensions.spaceMedium, vertical = Dimensions.spaceSmall),
+            .padding(horizontal = Dimensions.screenHorizontalPadding, vertical = Dimensions.spaceSmall),
         verticalArrangement = Arrangement.spacedBy(Dimensions.spaceSmall)
     ) {
-        OutlinedTextField(
+        WalletQTextField(
             value = filterState.searchQuery,
             onValueChange = onSearchQueryChanged,
-            placeholder = { Text("Search accounts, currency, type...") },
+            label = "Search",
+            placeholder = "Search accounts, currency, type...",
             leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
             trailingIcon = {
                 if (filterState.searchQuery.isNotEmpty()) {
@@ -558,45 +656,39 @@ private fun AccountFilterPanel(
                         Icon(Icons.Outlined.Close, contentDescription = "Clear search")
                     }
                 }
-            },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
+            }
         )
 
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(Dimensions.spaceSmall)
-        ) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(Dimensions.spaceSmall)) {
             OwnershipFilter.entries.forEach { ownership ->
-                FilterChip(
+                WalletQFilterChip(
                     selected = filterState.ownershipFilter == ownership,
-                    onClick = { onOwnershipFilterSelected(ownership) },
-                    label = { Text(ownership.label) }
+                    label = ownership.label,
+                    onClick = { onOwnershipFilterSelected(ownership) }
                 )
             }
-            FilterChip(
+            WalletQFilterChip(
                 selected = filterState.showArchived,
-                onClick = { onShowArchivedToggled(!filterState.showArchived) },
-                label = { Text("Show Archived") }
+                label = "Show Archived",
+                onClick = { onShowArchivedToggled(!filterState.showArchived) }
             )
         }
 
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(Dimensions.spaceSmall)
-        ) {
-            FilterChip(
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(Dimensions.spaceSmall)) {
+            WalletQFilterChip(
                 selected = filterState.selectedType == null,
-                onClick = { onAccountTypeFilterSelected(null) },
-                label = { Text("All Types") }
+                label = "All Types",
+                onClick = { onAccountTypeFilterSelected(null) }
             )
             AccountVisuals.selectableAccountTypes.forEach { type ->
-                FilterChip(
+                WalletQFilterChip(
                     selected = filterState.selectedType == type,
+                    label = type.displayName,
                     onClick = {
                         onAccountTypeFilterSelected(
                             if (filterState.selectedType == type) null else type
                         )
-                    },
-                    label = { Text(type.displayName) }
+                    }
                 )
             }
         }

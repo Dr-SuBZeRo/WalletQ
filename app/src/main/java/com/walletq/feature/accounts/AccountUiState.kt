@@ -23,6 +23,11 @@ data class CurrencyBalanceSummary(
     val accountCount: Int
 )
 
+data class AccountMonthlySummary(
+    val incomeMinorUnits: Long = 0L,
+    val expenseMinorUnits: Long = 0L
+)
+
 data class AccountFilterState(
     val searchQuery: String = "",
     val ownershipFilter: OwnershipFilter = OwnershipFilter.ALL,
@@ -67,6 +72,7 @@ data class AccountsUiState(
     val householdAccounts: List<Account> = emptyList(),
     val archivedAccounts: List<Account> = emptyList(),
     val currencySummaries: List<CurrencyBalanceSummary> = emptyList(),
+    val monthlySummariesByAccountId: Map<String, AccountMonthlySummary> = emptyMap(),
     val households: List<Household> = emptyList(),
     val householdsById: Map<String, Household> = emptyMap(),
     val activeProfileId: String = "default-personal",

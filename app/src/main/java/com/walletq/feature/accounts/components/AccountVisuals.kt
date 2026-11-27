@@ -11,11 +11,7 @@ import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.Wallet
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.walletq.core.designsystem.Blue40
-import com.walletq.core.designsystem.IncomeGreen
-import com.walletq.core.designsystem.Slate600
-import com.walletq.core.designsystem.Teal40
-import com.walletq.core.designsystem.WarningAmber
+import com.walletq.core.designsystem.WalletQVibrantPalette
 import com.walletq.core.model.AccountType
 import java.time.Instant
 import java.time.ZoneId
@@ -36,14 +32,9 @@ data class AccountIconOption(
 
 object AccountVisuals {
 
-    val colorOptions: List<AccountColorOption> = listOf(
-        AccountColorOption("BLUE", "Blue", Blue40),
-        AccountColorOption("TEAL", "Teal", Teal40),
-        AccountColorOption("GREEN", "Emerald", IncomeGreen),
-        AccountColorOption("AMBER", "Amber", WarningAmber),
-        AccountColorOption("PURPLE", "Indigo", Color(0xFF6366F1)),
-        AccountColorOption("SLATE", "Slate", Slate600)
-    )
+    val colorOptions: List<AccountColorOption> = WalletQVibrantPalette.accountCardThemes.map {
+        AccountColorOption(it.id, it.label, it.endColor)
+    }
 
     val iconOptions: List<AccountIconOption> = listOf(
         AccountIconOption("BANK", "Bank", Icons.Outlined.AccountBalance),

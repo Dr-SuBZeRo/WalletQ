@@ -11,13 +11,15 @@ import com.walletq.core.datastore.PreferencesRepository
 import com.walletq.core.model.Account
 import com.walletq.core.model.AccountReconciliationEngine
 import com.walletq.core.model.AccountType
+import com.walletq.core.model.BudgetCalculationEngine
 import com.walletq.core.model.Currency
 import com.walletq.core.model.Household
-import com.walletq.core.model.LedgerEngine
 import com.walletq.core.model.LedgerEntry
 import com.walletq.core.model.Money
 import com.walletq.core.model.OwnershipType
 import com.walletq.core.model.Transaction
+import com.walletq.core.model.TransactionStatus
+import com.walletq.core.model.TransactionType
 import com.walletq.feature.activity.MoneyInputParser
 import com.walletq.feature.activity.OwnershipFilter
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -35,6 +37,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.YearMonth
 import java.util.UUID
 import javax.inject.Inject
 
@@ -74,6 +77,7 @@ class AccountViewModel @Inject constructor(
 
     private data class CoreAccountData(
         val allAccounts: List<Account>,
+        val allTransactions: List<Transaction>,
         val households: List<Household>,
         val activeProfileId: String,
         val defaultCurrencyCode: String
@@ -81,12 +85,14 @@ class AccountViewModel @Inject constructor(
 
     private val coreDataFlow: Flow<CoreAccountData> = combine(
         accountRepository.observeAllAccounts(),
+        transactionRepository.getTransactions(),
         householdDao.getAllHouseholdsFlow().map { list -> list.map { it.toDomain() } },
         profileDao.getDefaultProfileFlow().map { it?.id ?: "default-personal" },
         preferencesRepository.userPreferencesFlow.map { it.defaultCurrencyCode }
-    ) { accounts, households, profileId, defaultCurrency ->
+    ) { accounts, transactions, households, profileId, defaultCurrency ->
         CoreAccountData(
             allAccounts = accounts,
+            allTransactions = transactions,
             households = households,
             activeProfileId = profileId,
             defaultCurrencyCode = defaultCurrency
@@ -161,6 +167,25 @@ class AccountViewModel @Inject constructor(
         }
         val ledgerDerivedBalance = reconciliationReport?.expectedBalanceMinorUnits
 
+        // Actual monthly income & expense totals per account for current month
+        val (monthStartMs, monthEndMs) = BudgetCalculationEngine.monthBoundaries(YearMonth.now())
+        val reversalIds = data.allTransactions.mapNotNull { it.reversalTransactionId }.toSet()
+        val monthlyByAccount = mutableMapOf<String, AccountMonthlySummary>()
+        for (tx in data.allTransactions) {
+            if (tx.status != TransactionStatus.POSTED || tx.id in reversalIds) continue
+            if (tx.transactionDateEpochMs < monthStartMs || tx.transactionDateEpochMs > monthEndMs) continue
+            val current = monthlyByAccount[tx.accountId] ?: AccountMonthlySummary()
+            when (tx.type) {
+                TransactionType.INCOME -> monthlyByAccount[tx.accountId] = current.copy(
+                    incomeMinorUnits = Math.addExact(current.incomeMinorUnits, tx.amount.minorUnits)
+                )
+                TransactionType.EXPENSE -> monthlyByAccount[tx.accountId] = current.copy(
+                    expenseMinorUnits = Math.addExact(current.expenseMinorUnits, tx.amount.minorUnits)
+                )
+                TransactionType.TRANSFER -> Unit
+            }
+        }
+
         AccountsUiState(
             isLoading = false,
             errorMessage = meta.streamError,
@@ -169,6 +194,7 @@ class AccountViewModel @Inject constructor(
             householdAccounts = householdAccounts,
             archivedAccounts = archivedAccounts,
             currencySummaries = currencySummaries,
+            monthlySummariesByAccountId = monthlyByAccount,
             households = data.households,
             householdsById = data.households.associateBy { it.id },
             activeProfileId = data.activeProfileId,

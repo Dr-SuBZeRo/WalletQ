@@ -54,6 +54,54 @@ val IncomeGreen = LuxeLightSuccess
 val ExpenseRed = LuxeLightError
 val WarningAmber = LuxeLightWarning
 
+// IvyWallet-Inspired Vibrant Accent Palette
+val VibrantEmerald = Color(0xFF00D39A)
+val VibrantTurquoise = Color(0xFF00CDBA)
+val VibrantPurple = Color(0xFF7950F2)
+val VibrantElectricBlue = Color(0xFF3184F5)
+val VibrantWarmYellow = Color(0xFFF7E879)
+val VibrantCoral = Color(0xFFFF786D)
+val VibrantPink = Color(0xFFF04482)
+
+@Immutable
+data class AccountCardTheme(
+    val id: String,
+    val label: String,
+    val startColor: Color,
+    val endColor: Color,
+    val contentColor: Color
+)
+
+object WalletQVibrantPalette {
+    val incomeGradientStart = VibrantEmerald
+    val incomeGradientEnd = VibrantTurquoise
+    val incomeContent = Color(0xFF04291E)
+
+    val expenseGradientStart = VibrantPurple
+    val expenseGradientEnd = VibrantPink
+    val expenseContent = Color.White
+
+    val netWorthGradientStart = Color(0xFF1A243B)
+    val netWorthGradientEnd = Color(0xFF233254)
+
+    val accountCardThemes: List<AccountCardTheme> = listOf(
+        AccountCardTheme("BLUE", "Electric Blue", Color(0xFF2563EB), VibrantElectricBlue, Color.White),
+        AccountCardTheme("TEAL", "Turquoise", Color(0xFF0D9488), VibrantTurquoise, Color.White),
+        AccountCardTheme("GREEN", "Emerald", Color(0xFF059669), VibrantEmerald, Color.White),
+        AccountCardTheme("PURPLE", "Royal Purple", Color(0xFF5B35D5), VibrantPurple, Color.White),
+        AccountCardTheme("CORAL", "Coral", Color(0xFFE05247), VibrantCoral, Color.White),
+        AccountCardTheme("PINK", "Rose Pink", Color(0xFFC82864), VibrantPink, Color.White),
+        AccountCardTheme("AMBER", "Warm Gold", Color(0xFFD99B16), VibrantWarmYellow, Color(0xFF1F1600)),
+        AccountCardTheme("SLATE", "Charcoal", Color(0xFF273142), Color(0xFF39465C), Color.White)
+    )
+
+    fun resolveAccountTheme(colorIdentifier: String?, fallbackKey: String): AccountCardTheme {
+        accountCardThemes.find { it.id == colorIdentifier }?.let { return it }
+        val index = (fallbackKey.hashCode() and 0x7FFFFFFF) % accountCardThemes.size
+        return accountCardThemes[index]
+    }
+}
+
 val DarkColorScheme = darkColorScheme(
     primary = MidnightPrimary,
     onPrimary = MidnightOnPrimary,

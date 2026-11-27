@@ -58,11 +58,30 @@ import com.walletq.feature.activity.components.TransferSheet
 @Composable
 fun ActivityScreen(
     modifier: Modifier = Modifier,
+    initialAction: String? = null,
+    onInitialActionConsumed: () -> Unit = {},
     viewModel: TransactionViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val transactionFormState by viewModel.transactionFormState.collectAsStateWithLifecycle()
     val transferFormState by viewModel.transferFormState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(initialAction) {
+        when (initialAction) {
+            "EXPENSE" -> {
+                viewModel.openAddTransactionSheet(TransactionType.EXPENSE)
+                onInitialActionConsumed()
+            }
+            "INCOME" -> {
+                viewModel.openAddTransactionSheet(TransactionType.INCOME)
+                onInitialActionConsumed()
+            }
+            "TRANSFER" -> {
+                viewModel.openTransferSheet()
+                onInitialActionConsumed()
+            }
+        }
+    }
 
     val selectedAccount = transactionFormState.selectedAccountId?.let { uiState.accountsById[it] }
     val filteredCategories = remember(
