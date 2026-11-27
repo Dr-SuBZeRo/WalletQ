@@ -5,6 +5,8 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.walletq.core.designsystem.WalletQMotion
+import com.walletq.core.designsystem.rememberReducedMotion
 import com.walletq.core.model.ThemeMode
 import com.walletq.core.model.UserPreferences
 import com.walletq.feature.accounts.AccountsScreen
@@ -25,9 +27,14 @@ fun WalletQNavHost(
     onDefaultCurrencyChanged: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val reducedMotion = rememberReducedMotion()
     NavHost(
         navController = navController,
         startDestination = TopLevelDestination.START_DESTINATION.route,
+        enterTransition = { WalletQMotion.screenEnter(reducedMotion) },
+        exitTransition = { WalletQMotion.screenExit(reducedMotion) },
+        popEnterTransition = { WalletQMotion.screenEnter(reducedMotion) },
+        popExitTransition = { WalletQMotion.screenExit(reducedMotion) },
         modifier = modifier
     ) {
         composable(TopLevelDestination.HOME.route) {

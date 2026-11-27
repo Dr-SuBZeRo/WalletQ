@@ -4,7 +4,7 @@
 **Developer:** SuBZeRo  
 **Package:** `com.walletq`  
 **License:** Apache License 2.0  
-**Current Phase:** 4A — Budget Management Foundation  
+**Current Phase:** UI/UX Redesign Phase A — Midnight Luxe Design System  
 **Database Schema Version:** 5  
 
 ---
@@ -162,3 +162,19 @@ The presentation layer connects `TransactionRepository`, `CategoryRepository`, a
 2. **Repository & Presentation (`com.walletq.feature.budgets`):**
    - `BudgetRepository` / `BudgetRepositoryImpl`: Validates currency, positive minor-unit limits, expense-only non-duplicate categories, and personal/household authorization.
    - `BudgetViewModel` & `BudgetsScreen` (accessible as a secondary destination from `MoreScreen`, preserving the 5 primary navigation tabs).
+
+---
+
+## 9. Midnight Luxe Design System & Motion Architecture (UI/UX Phase A)
+
+1. **Semantic Colour System (`Color.kt`, `Theme.kt`):**
+   - Midnight Luxe dark palette (`#101522` background, `#171F2E` surface, `#202B3D` elevated surface, `#A8C4FF` primary, `#8FA7D8` secondary, `#62D6A5` success, `#F28E9B` error, `#F4F6FC` primary text, `#9BA8BD` secondary text) paired with a coordinated Light palette.
+   - Provided via `WalletQThemeTokens.colors` (`LocalWalletQColors` `CompositionLocal`) alongside Material 3 `ColorScheme`, preserving System/Light/Dark modes and optional dynamic colour.
+2. **Typography, Spacing & Shapes (`Type.kt`, `Dimensions.kt`, `Shape.kt`):**
+   - Full Material 3 type scale plus `WalletQMonetaryTypography` using tabular numerals (`fontFeatureSettings = "tnum"`) without excessive bold weights.
+   - 4dp base spacing grid (`Dimensions`) with standard button heights (`48.dp`), hairline card borders (`1.dp`), and restrained corner radii (`6dp`–`20dp`).
+3. **Reusable Components & Navigation (`core/designsystem/component`, `WalletQBottomBar`):**
+   - Centralized components: `WalletQCard`, `WalletQTopBar`, `WalletQEmptyState`, `WalletQSummaryCard`, `WalletQSectionHeader`, `WalletQPrimaryButton`, `WalletQSecondaryButton`, `WalletQIconButton`, `WalletQTextField`, `WalletQFilterChip`, `WalletQStatusBadge`, `WalletQProgressIndicator`, `WalletQLoadingState`, `WalletQLoadingPlaceholder`, `WalletQBottomSheet`, `WalletQConfirmDialog`, `WalletQAccountRowCard`, and `WalletQTransactionRow`.
+   - `WalletQBottomBar` provides smooth animated selection for the 5 primary destinations while respecting `WindowInsets.navigationBars`.
+4. **Motion Architecture (`WalletQMotion.kt`):**
+   - Standardized fast non-bouncy specs (`150ms`–`260ms`) for screen transitions, content entrance, card press feedback, discrete value updates, and progress indicators, honoring Android `ANIMATOR_DURATION_SCALE == 0f` reduced-motion settings.

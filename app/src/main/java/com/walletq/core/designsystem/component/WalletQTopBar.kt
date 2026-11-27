@@ -8,6 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.walletq.core.designsystem.WalletQThemeTokens
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -17,19 +18,23 @@ fun WalletQTopBar(
     navigationIcon: @Composable () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {}
 ) {
+    val tokens = WalletQThemeTokens.colors
     CenterAlignedTopAppBar(
         title = {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleLarge
+                style = MaterialTheme.typography.titleLarge,
+                color = tokens.primaryText
             )
         },
         modifier = modifier,
         navigationIcon = navigationIcon,
         actions = actions,
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-            containerColor = MaterialTheme.colorScheme.background,
-            titleContentColor = MaterialTheme.colorScheme.onBackground
+            containerColor = tokens.background,
+            titleContentColor = tokens.primaryText,
+            navigationIconContentColor = tokens.primaryText,
+            actionIconContentColor = tokens.secondaryText
         )
     )
 }

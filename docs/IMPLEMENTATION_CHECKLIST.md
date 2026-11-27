@@ -82,3 +82,11 @@
 - [x] Implement `BudgetViewModel`, `BudgetsUiState`, `BudgetsScreen`, and `AddEditBudgetSheet` (secondary route from `MoreScreen`).
 - [x] Add `BudgetCalculationEngineTest`, `BudgetRepositoryTest`, `BudgetViewModelTest`, and `MIGRATION_4_5` test in `MigrationTest`.
 - [x] Verify `testDebugUnitTest`, `assembleDebug`, `lintDebug` and update documentation.
+
+## UI/UX Redesign Phase A: Midnight Luxe Design System
+- [x] Implement Midnight Luxe Dark & coordinated Light colour system + `WalletQThemeTokens` (`LocalWalletQColors`).
+- [x] Refine `Typography` (with `WalletQMonetaryTypography` tabular figures), `Dimensions` (4dp grid), and `Shapes`.
+- [x] Implement `WalletQMotion` with reduced-motion support (`rememberReducedMotion`).
+- [x] Build reusable Midnight Luxe components (`WalletQCard`, `WalletQSummaryCard`, `WalletQSectionHeader`, `WalletQButtons`, `WalletQInputs`, `WalletQStatusIndicator`, `WalletQLoadingPlaceholder`, `WalletQOverlays`, `WalletQFinancialRows`).
+- [x] Redesign 5-destination bottom navigation (`WalletQBottomBar`) with system inset handling and `WalletQNavHost` screen transitions.
+- [x] Verify `testDebugUnitTest`, `assembleDebug`, `lintDebug` and update documentation.
