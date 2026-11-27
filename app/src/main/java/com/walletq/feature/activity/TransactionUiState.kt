@@ -2,6 +2,7 @@ package com.walletq.feature.activity
 
 import com.walletq.core.model.Account
 import com.walletq.core.model.Category
+import com.walletq.core.model.Currency
 import com.walletq.core.model.Household
 import com.walletq.core.model.LedgerEntry
 import com.walletq.core.model.Money
@@ -34,7 +35,24 @@ data class TransactionFilterState(
     val ownershipFilter: OwnershipFilter = OwnershipFilter.ALL,
     val selectedType: TransactionType? = null,
     val selectedAccountId: String? = null,
+    val selectedCategoryId: String? = null,
     val dateRangeFilter: DateRangeFilter = DateRangeFilter.ALL
+) {
+    val activeFilterCount: Int
+        get() = listOfNotNull(
+            if (ownershipFilter != OwnershipFilter.ALL) 1 else null,
+            if (selectedType != null) 1 else null,
+            if (selectedAccountId != null) 1 else null,
+            if (selectedCategoryId != null) 1 else null,
+            if (dateRangeFilter != DateRangeFilter.ALL) 1 else null
+        ).size
+}
+
+data class ActivityMonthlySummary(
+    val currency: Currency,
+    val incomeMinorUnits: Long,
+    val expenseMinorUnits: Long,
+    val netCashFlowMinorUnits: Long
 )
 
 data class TransactionDateGroup(
@@ -82,6 +100,7 @@ data class ActivityUiState(
     val householdsById: Map<String, Household> = emptyMap(),
     val activeProfileId: String = "default-personal",
     val filterState: TransactionFilterState = TransactionFilterState(),
+    val monthlySummary: ActivityMonthlySummary? = null,
     val selectedTransaction: Transaction? = null,
     val selectedTransactionLedgerEntries: List<LedgerEntry> = emptyList(),
     val isReversing: Boolean = false,

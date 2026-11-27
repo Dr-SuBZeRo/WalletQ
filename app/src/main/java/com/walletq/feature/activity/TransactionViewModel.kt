@@ -10,7 +10,9 @@ import com.walletq.core.database.mapper.toDomain
 import com.walletq.core.database.repository.CategoryRepository
 import com.walletq.core.database.repository.TransactionRepository
 import com.walletq.core.model.Account
+import com.walletq.core.model.BudgetCalculationEngine
 import com.walletq.core.model.Category
+import com.walletq.core.model.Currency
 import com.walletq.core.model.Household
 import com.walletq.core.model.LedgerEntry
 import com.walletq.core.model.OwnershipType
@@ -36,6 +38,7 @@ import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -144,6 +147,11 @@ class TransactionViewModel @Inject constructor(
         val selectedTx = meta.selectedTransactionId?.let { id ->
             data.transactions.find { it.id == id }
         }
+        val monthlySummary = computeMonthlySummary(
+            allTransactions = data.transactions,
+            filter = meta.filterState,
+            accountsById = accountsById
+        )
 
         ActivityUiState(
             isLoading = false,
@@ -157,6 +165,7 @@ class TransactionViewModel @Inject constructor(
             householdsById = householdsById,
             activeProfileId = data.activeProfileId,
             filterState = meta.filterState,
+            monthlySummary = monthlySummary,
             selectedTransaction = selectedTx,
             selectedTransactionLedgerEntries = meta.selectedLedgerEntries,
             isReversing = meta.isReversing,
@@ -194,6 +203,10 @@ class TransactionViewModel @Inject constructor(
 
     fun onAccountFilterChanged(accountId: String?) {
         _filterState.update { it.copy(selectedAccountId = accountId) }
+    }
+
+    fun onCategoryFilterChanged(categoryId: String?) {
+        _filterState.update { it.copy(selectedCategoryId = categoryId) }
     }
 
     fun onDateRangeFilterChanged(dateRangeFilter: DateRangeFilter) {
@@ -723,6 +736,10 @@ class TransactionViewModel @Inject constructor(
                 return@filter false
             }
 
+            if (filter.selectedCategoryId != null && tx.categoryId != filter.selectedCategoryId) {
+                return@filter false
+            }
+
             val matchesDate = when (filter.dateRangeFilter) {
                 DateRangeFilter.ALL -> true
                 DateRangeFilter.TODAY -> tx.transactionDateEpochMs in startOfTodayMs until startOfTomorrowMs
@@ -772,5 +789,51 @@ class TransactionViewModel @Inject constructor(
                     transactions = list
                 )
             }
+    }
+
+    private fun computeMonthlySummary(
+        allTransactions: List<Transaction>,
+        filter: TransactionFilterState,
+        accountsById: Map<String, Account>
+    ): ActivityMonthlySummary {
+        val summaryCurrency = filter.selectedAccountId?.let { accountsById[it]?.currency }
+            ?: allTransactions.firstOrNull()?.amount?.currency
+            ?: Currency.DEFAULT_REPORTING_CURRENCY
+
+        val (monthStartMs, monthEndMs) = BudgetCalculationEngine.monthBoundaries(YearMonth.now())
+        val reversalIds = allTransactions.mapNotNull { it.reversalTransactionId }.toSet()
+
+        var incomeMinor = 0L
+        var expenseMinor = 0L
+
+        for (tx in allTransactions) {
+            if (tx.status != TransactionStatus.POSTED) continue
+            if (tx.id in reversalIds) continue
+            if (tx.type == TransactionType.TRANSFER) continue
+            if (tx.amount.currency.code != summaryCurrency.code) continue
+            if (tx.transactionDateEpochMs < monthStartMs || tx.transactionDateEpochMs > monthEndMs) continue
+
+            val matchesOwnership = when (filter.ownershipFilter) {
+                OwnershipFilter.ALL -> true
+                OwnershipFilter.PERSONAL -> tx.ownershipType == OwnershipType.PERSONAL
+                OwnershipFilter.HOUSEHOLD -> tx.ownershipType == OwnershipType.HOUSEHOLD
+            }
+            if (!matchesOwnership) continue
+
+            if (filter.selectedAccountId != null && tx.accountId != filter.selectedAccountId) continue
+
+            when (tx.type) {
+                TransactionType.INCOME -> incomeMinor = Math.addExact(incomeMinor, tx.amount.minorUnits)
+                TransactionType.EXPENSE -> expenseMinor = Math.addExact(expenseMinor, tx.amount.minorUnits)
+                TransactionType.TRANSFER -> Unit
+            }
+        }
+
+        return ActivityMonthlySummary(
+            currency = summaryCurrency,
+            incomeMinorUnits = incomeMinor,
+            expenseMinorUnits = expenseMinor,
+            netCashFlowMinorUnits = Math.subtractExact(incomeMinor, expenseMinor)
+        )
     }
 }

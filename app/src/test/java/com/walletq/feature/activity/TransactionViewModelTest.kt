@@ -534,4 +534,70 @@ class TransactionViewModelTest {
 
         job.cancel()
     }
+
+    @Test
+    fun categoryFilterAndMonthlySummary_computeAccuratelyAndTrackActiveCount() = runTest {
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.uiState.collect()
+        }
+
+        val now = System.currentTimeMillis()
+        val incTx = Transaction(
+            id = "tx-inc",
+            type = TransactionType.INCOME,
+            amount = Money(50000L, Currency.INR),
+            accountId = "acc-inr",
+            categoryId = "cat-salary",
+            transactionDateEpochMs = now,
+            description = "Payday",
+            ownershipType = OwnershipType.PERSONAL,
+            ownerProfileId = "default-personal",
+            createdAtEpochMs = now,
+            updatedAtEpochMs = now
+        )
+        val expTx = Transaction(
+            id = "tx-exp",
+            type = TransactionType.EXPENSE,
+            amount = Money(12000L, Currency.INR),
+            accountId = "acc-inr",
+            categoryId = "cat-food",
+            transactionDateEpochMs = now,
+            description = "Lunch",
+            ownershipType = OwnershipType.PERSONAL,
+            ownerProfileId = "default-personal",
+            createdAtEpochMs = now,
+            updatedAtEpochMs = now
+        )
+        val trfTx = Transaction(
+            id = "tx-trf",
+            type = TransactionType.TRANSFER,
+            amount = Money(10000L, Currency.INR),
+            accountId = "acc-inr",
+            categoryId = null,
+            transactionDateEpochMs = now,
+            description = "Transfer",
+            ownershipType = OwnershipType.PERSONAL,
+            ownerProfileId = "default-personal",
+            transferDetails = com.walletq.core.model.TransferDetails("acc-hh-inr", Money(10000L, Currency.INR)),
+            createdAtEpochMs = now,
+            updatedAtEpochMs = now
+        )
+        txRepo.transactionsFlow.value = listOf(incTx, expTx, trfTx)
+
+        val summary = viewModel.uiState.value.monthlySummary
+        assertNotNull(summary)
+        assertEquals(50000L, summary?.incomeMinorUnits)
+        assertEquals(12000L, summary?.expenseMinorUnits)
+        assertEquals(38000L, summary?.netCashFlowMinorUnits)
+
+        viewModel.onCategoryFilterChanged("cat-food")
+        assertEquals(1, viewModel.uiState.value.filterState.activeFilterCount)
+        assertEquals(listOf("tx-exp"), viewModel.uiState.value.transactions.map { it.id })
+
+        viewModel.clearFilters()
+        assertEquals(0, viewModel.uiState.value.filterState.activeFilterCount)
+        assertEquals(3, viewModel.uiState.value.transactions.size)
+
+        job.cancel()
+    }
 }

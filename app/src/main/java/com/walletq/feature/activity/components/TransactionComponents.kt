@@ -58,7 +58,15 @@ import androidx.compose.ui.unit.dp
 import com.walletq.core.designsystem.Dimensions
 import com.walletq.core.designsystem.ExpenseRed
 import com.walletq.core.designsystem.IncomeGreen
+import com.walletq.core.designsystem.VibrantCoral
+import com.walletq.core.designsystem.VibrantElectricBlue
+import com.walletq.core.designsystem.VibrantEmerald
+import com.walletq.core.designsystem.WalletQMonetaryTypography
+import com.walletq.core.designsystem.WalletQThemeTokens
 import com.walletq.core.designsystem.WarningAmber
+import com.walletq.core.designsystem.component.WalletQCard
+import com.walletq.core.designsystem.component.WalletQStatusBadge
+import com.walletq.core.designsystem.component.WalletQStatusTone
 import com.walletq.core.model.Account
 import com.walletq.core.model.Category
 import com.walletq.core.model.Currency
@@ -85,17 +93,18 @@ fun TransactionListItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val tokens = WalletQThemeTokens.colors
     val isReversed = transaction.status == TransactionStatus.REVERSED
-    val contentAlpha = if (isReversed) 0.55f else 1f
+    val contentAlpha = if (isReversed) 0.58f else 1f
 
     val iconVector = when (transaction.type) {
         TransactionType.TRANSFER -> Icons.Outlined.SwapHoriz
         else -> categoryIconFor(category?.iconIdentifier ?: "")
     }
     val defaultTint = when (transaction.type) {
-        TransactionType.INCOME -> IncomeGreen
-        TransactionType.EXPENSE -> ExpenseRed
-        TransactionType.TRANSFER -> MaterialTheme.colorScheme.secondary
+        TransactionType.INCOME -> VibrantEmerald
+        TransactionType.EXPENSE -> VibrantCoral
+        TransactionType.TRANSFER -> VibrantElectricBlue
     }
     val iconTint = if (transaction.type == TransactionType.TRANSFER || category == null) {
         defaultTint
@@ -104,16 +113,22 @@ fun TransactionListItem(
     }
 
     val amountColor = when {
-        isReversed -> MaterialTheme.colorScheme.onSurfaceVariant
-        transaction.type == TransactionType.INCOME -> IncomeGreen
-        transaction.type == TransactionType.EXPENSE -> ExpenseRed
-        else -> MaterialTheme.colorScheme.onSurface
+        isReversed -> tokens.secondaryText
+        transaction.type == TransactionType.INCOME -> tokens.success
+        transaction.type == TransactionType.EXPENSE -> tokens.error
+        else -> VibrantElectricBlue
     }
 
     val amountPrefix = when (transaction.type) {
         TransactionType.INCOME -> "+ "
         TransactionType.EXPENSE -> "- "
         TransactionType.TRANSFER -> ""
+    }
+
+    val timeLabel = remember(transaction.transactionDateEpochMs) {
+        Instant.ofEpochMilli(transaction.transactionDateEpochMs)
+            .atZone(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("hh:mm a", Locale.getDefault()))
     }
 
     val subtitle = buildString {
@@ -128,39 +143,34 @@ fun TransactionListItem(
                 append(category.name)
             }
         }
+        append(" • ")
+        append(timeLabel)
     }
 
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .alpha(contentAlpha),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp
+    WalletQCard(
+        onClick = onClick,
+        modifier = modifier.alpha(contentAlpha)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Dimensions.spaceMedium, vertical = 12.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(42.dp)
+                    .size(Dimensions.iconBadgeContainer)
                     .clip(CircleShape)
-                    .background(iconTint.copy(alpha = 0.14f)),
+                    .background(iconTint.copy(alpha = 0.16f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = iconVector,
                     contentDescription = category?.name ?: transaction.type.name,
                     tint = iconTint,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(Dimensions.iconMedium)
                 )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(Dimensions.spaceMediumSmall))
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(
@@ -169,18 +179,17 @@ fun TransactionListItem(
                 ) {
                     Text(
                         text = transaction.description,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = tokens.primaryText,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textDecoration = if (isReversed) TextDecoration.LineThrough else TextDecoration.None,
                         modifier = Modifier.weight(1f, fill = false)
                     )
                     if (isReversed) {
-                        StatusBadge(
+                        WalletQStatusBadge(
                             text = "REVERSED",
-                            containerColor = WarningAmber.copy(alpha = 0.18f),
-                            contentColor = WarningAmber
+                            tone = WalletQStatusTone.WARNING
                         )
                     }
                 }
@@ -194,27 +203,26 @@ fun TransactionListItem(
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = tokens.secondaryText,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false)
                     )
                     if (transaction.ownershipType == OwnershipType.HOUSEHOLD) {
-                        StatusBadge(
+                        WalletQStatusBadge(
                             text = "Household",
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            tone = WalletQStatusTone.INFO
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(Dimensions.spaceSmall))
 
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     text = "$amountPrefix${transaction.amount.format()}",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    style = WalletQMonetaryTypography.medium,
                     color = amountColor,
                     textDecoration = if (isReversed) TextDecoration.LineThrough else TextDecoration.None
                 )
@@ -226,7 +234,7 @@ fun TransactionListItem(
                     Text(
                         text = "→ ${destAmount.format()}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = tokens.secondaryText
                     )
                 }
             }

@@ -1,32 +1,32 @@
 package com.walletq.feature.activity
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FilterList
-import androidx.compose.material.icons.outlined.SwapHoriz
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -40,18 +40,28 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.walletq.core.designsystem.Dimensions
+import com.walletq.core.designsystem.WalletQMonetaryTypography
+import com.walletq.core.designsystem.WalletQMotion
+import com.walletq.core.designsystem.WalletQThemeTokens
+import com.walletq.core.designsystem.component.WalletQCard
 import com.walletq.core.designsystem.component.WalletQEmptyState
+import com.walletq.core.designsystem.component.WalletQFilterChip
+import com.walletq.core.designsystem.component.WalletQLoadingPlaceholder
+import com.walletq.core.designsystem.component.WalletQPrimaryButton
+import com.walletq.core.designsystem.component.WalletQSectionHeader
+import com.walletq.core.designsystem.component.WalletQTextField
 import com.walletq.core.designsystem.component.WalletQTopBar
+import com.walletq.core.designsystem.rememberReducedMotion
+import com.walletq.core.model.Money
 import com.walletq.core.model.OwnershipType
 import com.walletq.core.model.TransactionType
+import com.walletq.feature.activity.components.ActivityFilterSheet
 import com.walletq.feature.activity.components.AddTransactionSheet
 import com.walletq.feature.activity.components.TransactionDetailsSheet
-import com.walletq.feature.activity.components.TransactionFilterBar
 import com.walletq.feature.activity.components.TransactionListItem
 import com.walletq.feature.activity.components.TransferSheet
 
@@ -104,6 +114,7 @@ fun ActivityScreen(
         onOwnershipFilterChanged = viewModel::onOwnershipFilterChanged,
         onTypeFilterChanged = viewModel::onTypeFilterChanged,
         onAccountFilterChanged = viewModel::onAccountFilterChanged,
+        onCategoryFilterChanged = viewModel::onCategoryFilterChanged,
         onDateRangeFilterChanged = viewModel::onDateRangeFilterChanged,
         onClearFilters = viewModel::clearFilters,
         onOpenAddTransaction = { viewModel.openAddTransactionSheet(TransactionType.EXPENSE) },
@@ -166,10 +177,14 @@ fun ActivityScreenContent(
     onTransferNotesChanged: (String) -> Unit,
     onSubmitTransfer: () -> Unit,
     onConfirmReversal: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onCategoryFilterChanged: (String?) -> Unit = {}
 ) {
+    val tokens = WalletQThemeTokens.colors
+    val reducedMotion = rememberReducedMotion()
     val snackbarHostState = remember { SnackbarHostState() }
-    var showFilters by rememberSaveable { mutableStateOf(true) }
+    var showSearch by rememberSaveable { mutableStateOf(false) }
+    var showFilterSheet by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(uiState.snackbarMessage) {
         val msg = uiState.snackbarMessage
@@ -179,57 +194,52 @@ fun ActivityScreenContent(
         }
     }
 
-    val hasActiveFilters = uiState.filterState.searchQuery.isNotBlank() ||
-        uiState.filterState.ownershipFilter != OwnershipFilter.ALL ||
-        uiState.filterState.selectedType != null ||
-        uiState.filterState.selectedAccountId != null ||
-        uiState.filterState.dateRangeFilter != DateRangeFilter.ALL
+    val activeFilterCount = uiState.filterState.activeFilterCount
+    val hasActiveFilters = uiState.filterState.searchQuery.isNotBlank() || activeFilterCount > 0
 
     Scaffold(
+        containerColor = tokens.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             WalletQTopBar(
                 title = "Activity",
                 actions = {
-                    IconButton(onClick = onOpenTransfer) {
+                    IconButton(onClick = { showSearch = !showSearch }) {
                         Icon(
-                            imageVector = Icons.Outlined.SwapHoriz,
-                            contentDescription = "Transfer funds"
+                            imageVector = Icons.Outlined.Search,
+                            contentDescription = "Search transactions",
+                            tint = if (showSearch || uiState.filterState.searchQuery.isNotBlank()) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                tokens.secondaryText
+                            }
                         )
                     }
-                    IconButton(onClick = { showFilters = !showFilters }) {
-                        Icon(
-                            imageVector = Icons.Outlined.FilterList,
-                            contentDescription = "Toggle filters"
-                        )
+                    IconButton(onClick = { showFilterSheet = true }) {
+                        BadgedBox(
+                            badge = {
+                                if (activeFilterCount > 0) {
+                                    Badge {
+                                        Text(activeFilterCount.toString())
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.FilterList,
+                                contentDescription = "Open activity filters",
+                                tint = if (activeFilterCount > 0) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    tokens.secondaryText
+                                }
+                            )
+                        }
                     }
                 }
             )
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        floatingActionButton = {
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                SmallFloatingActionButton(
-                    onClick = onOpenTransfer,
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.SwapHoriz,
-                        contentDescription = "Transfer"
-                    )
-                }
-                ExtendedFloatingActionButton(
-                    onClick = onOpenAddTransaction,
-                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                    text = { Text("Add") },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            }
-        },
         modifier = modifier
     ) { innerPadding ->
         Column(
@@ -237,27 +247,87 @@ fun ActivityScreenContent(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            AnimatedVisibility(visible = showFilters) {
-                TransactionFilterBar(
-                    filterState = uiState.filterState,
-                    accounts = uiState.accounts,
-                    onSearchQueryChanged = onSearchQueryChanged,
-                    onOwnershipFilterChanged = onOwnershipFilterChanged,
-                    onTypeFilterChanged = onTypeFilterChanged,
-                    onAccountFilterChanged = onAccountFilterChanged,
-                    onDateRangeFilterChanged = onDateRangeFilterChanged,
-                    modifier = Modifier.padding(horizontal = Dimensions.spaceMedium, vertical = Dimensions.spaceSmall)
+            // Expandable Search Bar
+            AnimatedVisibility(
+                visible = showSearch,
+                enter = WalletQMotion.contentEnter(reducedMotion),
+                exit = WalletQMotion.contentExit(reducedMotion)
+            ) {
+                WalletQTextField(
+                    value = uiState.filterState.searchQuery,
+                    onValueChange = onSearchQueryChanged,
+                    label = "Search",
+                    placeholder = "Description, notes, account, or category...",
+                    leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (uiState.filterState.searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { onSearchQueryChanged("") }) {
+                                Icon(Icons.Outlined.Close, contentDescription = "Clear search")
+                            }
+                        }
+                    },
+                    modifier = Modifier.padding(
+                        horizontal = Dimensions.screenHorizontalPadding,
+                        vertical = Dimensions.spaceXSmall
+                    )
                 )
+            }
+
+            // Compact Monthly Summary Card
+            uiState.monthlySummary?.let { summary ->
+                ActivityMonthlySummaryCard(
+                    summary = summary,
+                    transactionCount = uiState.transactions.size,
+                    reducedMotion = reducedMotion,
+                    modifier = Modifier.padding(
+                        horizontal = Dimensions.screenHorizontalPadding,
+                        vertical = Dimensions.spaceXSmall
+                    )
+                )
+            }
+
+            // Horizontally Scrollable Quick Filter Chips
+            LazyRow(
+                contentPadding = PaddingValues(
+                    horizontal = Dimensions.screenHorizontalPadding,
+                    vertical = Dimensions.spaceXSmall
+                ),
+                horizontalArrangement = Arrangement.spacedBy(Dimensions.spaceSmall)
+            ) {
+                items(OwnershipFilter.entries) { ownership ->
+                    WalletQFilterChip(
+                        selected = uiState.filterState.ownershipFilter == ownership,
+                        label = ownership.label,
+                        onClick = { onOwnershipFilterChanged(ownership) }
+                    )
+                }
+                items(TransactionType.entries) { type ->
+                    val label = when (type) {
+                        TransactionType.INCOME -> "Income"
+                        TransactionType.EXPENSE -> "Expense"
+                        TransactionType.TRANSFER -> "Transfer"
+                    }
+                    WalletQFilterChip(
+                        selected = uiState.filterState.selectedType == type,
+                        label = label,
+                        onClick = {
+                            onTypeFilterChanged(if (uiState.filterState.selectedType == type) null else type)
+                        }
+                    )
+                }
+                item {
+                    WalletQFilterChip(
+                        selected = activeFilterCount > 0,
+                        label = if (activeFilterCount > 0) "More ($activeFilterCount)" else "More Filters",
+                        onClick = { showFilterSheet = true }
+                    )
+                }
             }
 
             when {
                 uiState.isLoading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
+                    Spacer(modifier = Modifier.height(Dimensions.spaceSmall))
+                    WalletQLoadingPlaceholder(count = 4)
                 }
 
                 uiState.errorMessage != null -> {
@@ -284,9 +354,10 @@ fun ActivityScreenContent(
                                     Text("Clear Filters")
                                 }
                             } else {
-                                Button(onClick = onOpenAddTransaction) {
-                                    Text("Record Transaction")
-                                }
+                                WalletQPrimaryButton(
+                                    text = "Record Transaction",
+                                    onClick = onOpenAddTransaction
+                                )
                             }
                         },
                         modifier = Modifier.fillMaxSize()
@@ -297,33 +368,20 @@ fun ActivityScreenContent(
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
-                            start = Dimensions.spaceMedium,
-                            end = Dimensions.spaceMedium,
+                            start = Dimensions.screenHorizontalPadding,
+                            end = Dimensions.screenHorizontalPadding,
                             top = Dimensions.spaceSmall,
-                            bottom = 96.dp
+                            bottom = Dimensions.spaceXXLarge
                         ),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.spaceSmall)
                     ) {
                         uiState.groupedTransactions.forEach { group ->
                             item(key = "header_${group.epochDay}") {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = Dimensions.spaceSmall, bottom = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = group.dateLabel,
-                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = "${group.transactions.size} item(s)",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                                WalletQSectionHeader(
+                                    title = group.dateLabel,
+                                    trailingText = "${group.transactions.size} item(s)",
+                                    modifier = Modifier.padding(top = Dimensions.spaceSmall)
+                                )
                             }
 
                             items(
@@ -349,6 +407,21 @@ fun ActivityScreenContent(
                 }
             }
         }
+    }
+
+    if (showFilterSheet) {
+        ActivityFilterSheet(
+            filterState = uiState.filterState,
+            accounts = uiState.accountsById.values.toList(),
+            categories = uiState.categories,
+            onOwnershipFilterChanged = onOwnershipFilterChanged,
+            onTypeFilterChanged = onTypeFilterChanged,
+            onDateRangeFilterChanged = onDateRangeFilterChanged,
+            onAccountFilterChanged = onAccountFilterChanged,
+            onCategoryFilterChanged = onCategoryFilterChanged,
+            onClearAll = onClearFilters,
+            onDismiss = { showFilterSheet = false }
+        )
     }
 
     when (uiState.activeSheet) {
@@ -396,11 +469,111 @@ fun ActivityScreenContent(
                     ledgerEntries = uiState.selectedTransactionLedgerEntries,
                     isReversing = uiState.isReversing,
                     onDismiss = onDismissSheet,
-                    onConfirmReversal = onConfirmReversal
+                    onConfirmReversal = { reason -> onConfirmReversal(reason) }
                 )
             }
         }
 
         ActiveActivitySheet.NONE -> Unit
+    }
+}
+
+@Composable
+private fun ActivityMonthlySummaryCard(
+    summary: ActivityMonthlySummary,
+    transactionCount: Int,
+    reducedMotion: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val tokens = WalletQThemeTokens.colors
+    val incomeText = Money(summary.incomeMinorUnits, summary.currency).format()
+    val expenseText = Money(summary.expenseMinorUnits, summary.currency).format()
+    val netMoney = Money(summary.netCashFlowMinorUnits, summary.currency)
+    val netText = (if (summary.netCashFlowMinorUnits > 0L) "+" else "") + netMoney.format()
+    val netColor = if (summary.netCashFlowMinorUnits >= 0L) tokens.success else tokens.error
+
+    WalletQCard(
+        elevated = true,
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "This Month (${summary.currency.code})",
+                style = MaterialTheme.typography.labelMedium,
+                color = tokens.secondaryText
+            )
+            Text(
+                text = "$transactionCount shown",
+                style = MaterialTheme.typography.labelSmall,
+                color = tokens.secondaryText
+            )
+        }
+        Spacer(modifier = Modifier.height(Dimensions.spaceSmall))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            SummaryMetricColumn(
+                label = "Income",
+                value = incomeText,
+                valueColor = tokens.success,
+                reducedMotion = reducedMotion,
+                modifier = Modifier.weight(1f)
+            )
+            SummaryMetricColumn(
+                label = "Expenses",
+                value = expenseText,
+                valueColor = tokens.error,
+                reducedMotion = reducedMotion,
+                modifier = Modifier.weight(1f)
+            )
+            SummaryMetricColumn(
+                label = "Net",
+                value = netText,
+                valueColor = netColor,
+                reducedMotion = reducedMotion,
+                horizontalAlignment = Alignment.End,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun SummaryMetricColumn(
+    label: String,
+    value: String,
+    valueColor: androidx.compose.ui.graphics.Color,
+    reducedMotion: Boolean,
+    modifier: Modifier = Modifier,
+    horizontalAlignment: Alignment.Horizontal = Alignment.Start
+) {
+    val tokens = WalletQThemeTokens.colors
+    Column(
+        modifier = modifier,
+        horizontalAlignment = horizontalAlignment
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = tokens.secondaryText
+        )
+        AnimatedContent(
+            targetState = value,
+            transitionSpec = WalletQMotion.discreteValueTransition(reducedMotion),
+            label = "activity_summary_$label"
+        ) { text ->
+            Text(
+                text = text,
+                style = WalletQMonetaryTypography.small,
+                color = valueColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }

@@ -98,3 +98,9 @@
 - [x] Redesign `AccountsScreen` with vibrant gradient account cards, currency-grouped summaries, credit card liability presentation, and actual monthly income/expense summaries per account.
 - [x] Upgrade `WalletQBottomBar` with integrated central Add action opening Quick Action sheet wired to real transaction/account workflows.
 - [x] Add `HomeViewModelTest` and verify `testDebugUnitTest`, `assembleDebug`, `lintDebug`.
+
+## UI/UX Redesign Phase B2: Activity Screen Redesign
+- [x] Extend `TransactionFilterState` (`selectedCategoryId`, `activeFilterCount`) and `ActivityUiState` (`ActivityMonthlySummary`) in `TransactionViewModel`.
+- [x] Redesign `ActivityScreen` with expandable search, compact monthly summary card, horizontally scrollable quick filter chips, dedicated `ActivityFilterSheet`, and removal of competing FABs.
+- [x] Redesign `TransactionListItem` with vibrant semantic colours, category icon badges, time labels, tabular numerals, and subdued reversed status.
+- [x] Add `TransactionViewModelTest` coverage and verify `testDebugUnitTest`, `assembleDebug`, `lintDebug`.
